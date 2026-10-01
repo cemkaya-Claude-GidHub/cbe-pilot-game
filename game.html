@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CBE Pilot · Cem Kaya</title>
+<title>CBE Pilot</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Press+Start+2P&family=VT323&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -537,7 +537,7 @@ body.pop-open #popup{padding-top:var(--hud-clearance,64px);}
 .cl-grid.c4{grid-template-columns:1fr 1fr 1fr 1fr;}
 .cl-grid.c3{grid-template-columns:1fr 1fr 1fr;}
 .cl-grid.c2{grid-template-columns:1fr 1fr;}
-.cl-fld label{font-size:8px;color:#7f92a3;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:2px;}
+.cl-fld label{font-size:8px;color:#7f92a3;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:2px;min-height:18px;line-height:9px;}
 .cl-fld input{background:#0d1b30;border:1px solid #234;border-radius:4px;color:#dfe8ef;padding:5px 6px;font-family:monospace;font-size:11.5px;width:100%;}
 .cl-fld input:focus{outline:none;border-color:#16c79a;}
 .cl-fld input[readonly]{background:#0a1420;border-color:#1a2a3a;color:#7d93a8;cursor:not-allowed;}
@@ -877,7 +877,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
           <option value="ferry">FERRY</option>
         </select>
       </div>
-      <div class="fl-field"><span class="fl-label">This sector</span><span style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding-left:4px;"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1a3a6a;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="fl-tail" style="width:20px;height:20px;min-width:20px;flex:0 0 20px;margin:0;accent-color:#1a3a6a;cursor:pointer;">🔧 Tail change</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1a3a6a;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="fl-training" style="width:20px;height:20px;min-width:20px;flex:0 0 20px;margin:0;accent-color:#1a3a6a;cursor:pointer;">🎓 I am instructing</label></span></div>
+      <div class="fl-field"><span class="fl-label">This sector</span><span style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding-left:4px;"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1a3a6a;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="fl-takeover" style="width:20px;height:20px;min-width:20px;flex:0 0 20px;margin:0;accent-color:#1a3a6a;cursor:pointer;">📥 Taking over aircraft</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1a3a6a;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="fl-handover" style="width:20px;height:20px;min-width:20px;flex:0 0 20px;margin:0;accent-color:#1a3a6a;cursor:pointer;">📤 Handing over aircraft</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1a3a6a;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="fl-training" style="width:20px;height:20px;min-width:20px;flex:0 0 20px;margin:0;accent-color:#1a3a6a;cursor:pointer;">🎓 I am instructing</label></span></div>
     </div>
     <datalist id="icao-list"></datalist>
     <div class="fl-note">📌 <b>Score</b> = sum of all task answers · 🎓 Tick <b>I am instructing</b> only when teaching another pilot<br>📊 <b>CBE Index</b> = month score ÷ sectors</div>
@@ -928,7 +928,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
 </div>
 <div id="level2ReviewModal">
   <div class="l2r-box">
-    <div class="l2-tag">📘 Level 2 · Review — <span id="l2r-actype"></span></div>
+    <div class="st-top"><div class="st-title">📘 LEVEL 2 · REVIEW — <span id="l2r-actype"></span></div><div class="st-pg"><span class="st-close" onclick="closeLevel2Review()">✕ CLOSE</span></div></div>
     <div id="l2r-info"></div>
     <div class="l2r-tabs">
       <button id="l2r-tab-mastered" onclick="level2ReviewTab('mastered')">✅ Mastered</button>
@@ -938,12 +938,11 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
     </div>
     <input id="l2r-search" placeholder="🔍 Search questions or answers…" oninput="level2ReviewTab(document.querySelector('.l2r-tabs button.active')?.id.replace('l2r-tab-','')||'mastered')">
     <div id="l2r-list"></div>
-    <button id="l2r-close" onclick="closeLevel2Review()">CLOSE</button>
   </div>
 </div>
 <div id="costLedgerModal">
   <div class="cl-box">
-    <div class="cl-tag">💰 STATISTIC · MONEY SAVING</div>
+    <div class="st-top"><div class="st-title">💰 STATISTIC · MONEY SAVING</div><div class="st-pg"><span class="st-close" onclick="closeCostLedger()">✕ CLOSE</span></div></div>
     <div class="cl-scroll">
       <div class="cl-grid c2" style="margin-bottom:10px;">
         <div class="cl-fld"><label>Flying day</label><input type="date" id="cl-dateField" value="" onchange="clSetDate(this.value)"></div>
@@ -1021,22 +1020,21 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div id="cl-trendWrap"><div class="cl-empty" id="cl-trendEmpty">No days saved yet — save today's flying day above to start the trend.</div></div>
 
       <details style="margin-top:14px;">
-        <summary style="cursor:pointer;font-size:10px;color:#7f92a3;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">🔧 Assumptions (editable)</summary>
+        <summary style="cursor:pointer;font-size:10px;color:#7f92a3;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">🔧 Assumptions (editable) <span id="ac-assum-badge" style="font-weight:400;"></span></summary>
         <div class="cl-grid c4" style="margin-top:8px;">
-          <div class="cl-fld"><label>APU (lbs/hr)</label><input type="number" id="cl-setApu" value="150" onchange="clCompute()"></div>
-          <div class="cl-fld"><label>Single-eng idle (lbs/hr)</label><input type="number" id="cl-setIdle" value="350" onchange="clCompute()"></div>
-          <div class="cl-fld"><label>Density (kg/ltr)</label><input type="number" step="0.01" id="cl-setDensity" value="0.80" onchange="clCompute()"></div>
-          <div class="cl-fld"><label>USD→EUR</label><input type="number" step="0.01" id="cl-setFx" value="0.92" onchange="clCompute()"></div>
+          <div class="cl-fld"><label title="Locked — set in code, not editable here">APU (lbs/hr) 🔒</label><input type="number" id="cl-setApu" value="150" readonly style="background:#1c2530;cursor:not-allowed;"></div>
+          <div class="cl-fld"><label title="Locked — set in code, not editable here">Idle, 1-eng (lbs/hr) 🔒</label><input type="number" id="cl-setIdle" value="350" readonly style="background:#1c2530;cursor:not-allowed;"></div>
+          <div class="cl-fld"><label title="Locked — set in code, not editable here">Density (kg/ltr) 🔒</label><input type="number" step="0.01" id="cl-setDensity" value="0.80" readonly style="background:#1c2530;cursor:not-allowed;"></div>
+          <div class="cl-fld"><label title="Fallback only — used only if a stop's real flight-pack rate can't be read">USD→EUR (fallback) 🔒</label><input type="number" step="0.01" id="cl-setFx" value="0.92" readonly style="background:#1c2530;cursor:not-allowed;"></div>
         </div>
         <div class="cl-flag">APU non-CBE baseline: 80 min (pre/post-flight) or full turnaround ground time if &lt;2h; CBE target &lt;40min. Toilet/Water/GPU fallback €100 until 100 real legs are on file, then switches to the rolling average automatically.</div>
       </details>
     </div>
-    <button id="cl-close" onclick="closeCostLedger()">CLOSE</button>
   </div>
 </div>
 <div id="pilotBonusModal">
   <div class="cl-box">
-    <div class="cl-tag">🏆 PILOT BONUS</div>
+    <div class="st-top"><div class="st-title">🏆 PILOT BONUS</div><div class="st-pg"><span class="st-close" onclick="closePilotBonus()">✕ CLOSE</span></div></div>
     <div class="cl-scroll">
       <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;">① YOUR DETAILS</div>
       <div class="cl-grid c2" style="margin-bottom:10px;">
@@ -1068,7 +1066,6 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       </details>
       <div class="cl-flag" style="margin-top:10px;">Real savings are summed from your saved Cost Ledger days (Statistic · Money Saving) that fall within the selected month. Save each flying day there first, or this will show €0.</div>
     </div>
-    <button id="pb-close" onclick="closePilotBonus()">CLOSE</button>
   </div>
 </div>
 <div id="costPromptModal">
@@ -1348,18 +1345,14 @@ class MiniPDF{
     const url=URL.createObjectURL(blob);
 
     if(typeof window!=='undefined'&&window.__printFlow){
-      // PRINT flow: this call always builds the LIGHT-coloured version (see
-      // printReportLight below). Try to open the OS print dialog directly via
-      // a hidden iframe; some browsers block script-triggered print silently,
-      // so we ALSO always save the light PDF as a guaranteed fallback.
-      try{
-        const ifr=document.createElement('iframe');
-        ifr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;';
-        ifr.src=url;
-        document.body.appendChild(ifr);
-        ifr.onload=()=>{try{ifr.contentWindow.focus();ifr.contentWindow.print();}catch(e){}};
-      }catch(e){}
-      try{const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);}catch(e){}
+      // 23 Sep 2026: the old approach tried to trigger the OS print dialog directly via a
+      // hidden iframe + contentWindow.print() — iOS Safari frequently blocks this silently,
+      // which is why every print attempt also had to force-save a fallback copy "just in
+      // case." Opening the PDF directly instead is completely reliable: Safari's own built-in
+      // PDF viewer has a Share icon with Print always available from there — one less uncertain
+      // step, not a hidden fallback.
+      try{ window.open(url,'_blank'); }
+      catch(e){ try{const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);}catch(e2){} }
       return;
     }
 
@@ -1416,7 +1409,7 @@ function printReportLight(includeCBE){
   window.__printFlow=true;
   try{ exportPDF('light',includeCBE,window.__lastExportRange||{type:'all'}); }
   finally{ window.__printFlow=false; }
-  showToast('🖨️ Opening print dialog (light, ink-friendly version)… If it doesn\'t appear, the light PDF has also been saved — open it from Files/Downloads and print from there.');
+  showToast('📄 Opening PDF (light, ink-friendly version) — tap Safari\'s Share icon there to print.');
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1564,18 +1557,17 @@ function pfViewFlightReadOnly(idx){
 function showPdfViewer(url,filename,downloadTried,canvases,includeCBE){
   let ov=document.getElementById('pdf-viewer-ov');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='pdf-viewer-ov';
-  ov.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(3,6,10,.82);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:14px;font-family:Inter,system-ui,sans-serif;';
+  ov.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(3,6,10,.82);display:flex;align-items:flex-start;justify-content:center;overflow:hidden;padding:14px;font-family:Inter,system-ui,sans-serif;';
   const nPages=(canvases&&canvases.length)||0;
   ov.innerHTML=`
     <div style="max-width:900px;width:100%;margin:0 auto;background:linear-gradient(180deg,#0f1a22,#13212a);border:1px solid #2a5560;border-radius:11px;overflow:hidden;box-shadow:0 0 50px rgba(22,199,154,.18);display:flex;flex-direction:column;max-height:100%;">
-      <div style="display:flex;justify-content:space-between;align-items:center;background:#123039;border-bottom:1px solid #2a6b78;padding:10px 14px;flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#123039;border-bottom:1px solid #2a6b78;padding:10px 14px;flex-shrink:0;position:sticky;top:0;z-index:2;">
         <div style="min-width:0;flex:1;">
           <b style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;letter-spacing:1.5px;color:#3df0c8;text-shadow:0 0 8px rgba(61,240,200,.45);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📄 ${filename}</b>
           <div id="pdfv-status" style="font-family:'Courier New',monospace;font-size:9px;color:#86b0bc;margin-top:3px;letter-spacing:1px;">${nPages?nPages+' PAGE'+(nPages>1?'S':'')+' · SCROLL TO VIEW':'PREPARING…'}</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;margin-left:10px;align-items:center;">
-          <span onclick="printReportLight(${includeCBE?'true':'false'})" style="cursor:pointer;background:#e8edf2;color:#0b171d;padding:8px 13px;font-size:11px;font-weight:700;border-radius:4px;letter-spacing:.3px;">🖨️ PRINT</span>
-          <a href="${url}" download="${filename}" style="background:#16c79a;color:#03110d;padding:8px 13px;font-size:11px;font-weight:700;text-decoration:none;border-radius:4px;letter-spacing:.3px;box-shadow:0 0 10px rgba(22,199,154,.35);">⬇ SAVE</a>
+          <span onclick="printReportLight(${includeCBE?'true':'false'})" style="cursor:pointer;background:#e8edf2;color:#0b171d;padding:8px 13px;font-size:11px;font-weight:700;border-radius:4px;letter-spacing:.3px;">📄 OPEN PDF · PRINT</span>
           <span onclick="document.getElementById('pdf-viewer-ov').remove()" style="cursor:pointer;color:#9fe6d6;border:1px solid #2a6b78;border-radius:4px;padding:6px 10px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:1px;">✕ CLOSE</span>
         </div>
       </div>
@@ -1797,10 +1789,17 @@ function _theme(){
 // tuned to feel right at their base speed, so almost nothing should push them faster,
 // EXCEPT while a vehicle is actually driving across the screen — that gets its own
 // distinct energy boost so the music visibly "responds" to the vehicle's motion.
+// How the flight is going right now, as a single -1..1 number derived from the live score —
+// no new state, just a shared read of what the game already tracks. Used to quietly tilt the
+// music's brightness/tempo/mode toward "going well" or "going rough" without any text or UI.
+function _mood(){
+  if(!G||!G.running)return 0;
+  return Math.max(-1,Math.min(1,(G.score||0)/300));
+}
 function _bpm(theme){
   if(!G||!G.running)return theme.bpm;
   const prog=Math.min(1,G.worldX/4400);
-  const mood=Math.max(-1,Math.min(1,(G.score||0)/300));
+  const mood=_mood();
   const spd=(typeof GAME_SPEED!=='undefined'?GAME_SPEED:1);
   const spdBoost=Math.round((spd-1)*theme.bpm*0.24);
   const vehicleBoost=(G.phase==='vehicle')?Math.round(theme.bpm*0.12*spd):0;
@@ -1814,7 +1813,15 @@ function _filterUpdate(){
   const spd=(typeof GAME_SPEED!=='undefined'?GAME_SPEED:1);
   const spdLift=1+(spd-1)*0.35; // faster play = slightly brighter tone, a second cue alongside tempo
   const vehicleLift=(G.phase==='vehicle')?1.15:1; // extra brightness while a vehicle is actually driving
-  SCORE.lp.frequency.value+=(cut*spdLift*vehicleLift-SCORE.lp.frequency.value)*0.10;
+  const moodLift=1+_mood()*0.12; // a touch brighter when things are going well, a touch duller when rough
+  SCORE.lp.frequency.value+=(cut*spdLift*vehicleLift*moodLift-SCORE.lp.frequency.value)*0.10;
+}
+// When the flight's going rough, bend the major 3rd/6th down a semitone wherever they occur —
+// the same tune leans minor/wistful instead of bright, without changing note count or rhythm.
+function _moodNote(n,theme,mood){
+  if(!n||mood>=-0.12)return n;
+  const rel=((n-theme.root)%12+12)%12;
+  return (rel===4||rel===9)?n-1:n;
 }
 
 let _prevScene='';
@@ -1838,13 +1845,14 @@ function scoreScheduler(){
       // ever getting busier or faster in the moment. This is where "more dynamic"
       // should live — not in adding more notes per beat.
       const breathe=0.82+0.18*Math.sin(t*(2*Math.PI/8));
+      const mood=_mood();
 
       // Melody — accented like a bounce: strong on the downbeat, lighter in between,
       // instead of flat uniform volume, so the tune has actual up-down energy.
       if(theme.mel[i]){
         const accent=(beat===0)?1.0:(beat===2)?0.85:0.7;
         const v=(G&&G.running?0.10+Math.min(0.02,(G.score||0)/2000):0.11)*accent*breathe;
-        _pulse(_hz(theme.mel[i]),t,s8*0.84,v,theme.duty);
+        _pulse(_hz(_moodNote(theme.mel[i],theme,mood)),t,s8*0.84,v,theme.duty);
       }
       // Bass
       _tri(_hz(theme.bas[i]),t,s8*0.76,0.17);
@@ -1853,15 +1861,15 @@ function scoreScheduler(){
       // running continuously at double speed underneath everything, the classic chiptune
       // trick for constant motion/pep instead of the beat sitting static.
       const arpCycle=[0,4,7,12,7,4], arpStep=(SCORE.step*2)%6;
-      const arpNote=theme.root+12+arpCycle[arpStep];
+      const arpNote=_moodNote(theme.root+12+arpCycle[arpStep],theme,mood);
       const arpVol=((arpStep===0)?0.055:0.035)*breathe;
       _pluck(_hz(arpNote),t,arpVol);
-      _pluck(_hz(theme.root+12+arpCycle[(arpStep+1)%6]),t+s8/2,(arpStep%2===0?0.045:0.03)*breathe);
+      _pluck(_hz(_moodNote(theme.root+12+arpCycle[(arpStep+1)%6],theme,mood)),t+s8/2,(arpStep%2===0?0.045:0.03)*breathe);
 
       // A small sparkle flourish every 2 bars (32 steps) — a brief quick run, rare enough
       // to feel like a little surprise rather than added constant business.
       if(SCORE.step%32===0){
-        [0,4,7,12].forEach((semi,k)=>_pluck(_hz(theme.root+12+semi),t+k*(s8*0.22),0.05-k*0.006));
+        [0,4,7,12].forEach((semi,k)=>_pluck(_hz(_moodNote(theme.root+12+semi,theme,mood)),t+k*(s8*0.22),0.05-k*0.006));
       }
 
       // Drum pattern — one consistent, simple, confident groove everywhere: kick on 1&3,
@@ -1884,7 +1892,7 @@ function scoreScheduler(){
 
       // Sub-octave bloom on sky/arrival strong beats
       if((curSc==='sky'||curSc==='arrival')&&beat===0&&theme.mel[i])
-        _tri(_hz(theme.mel[i]-12),t,s8*1.9,0.09);
+        _tri(_hz(_moodNote(theme.mel[i],theme,mood)-12),t,s8*1.9,0.09);
 
       SCORE.t+=s8; SCORE.step++;
     }
@@ -2126,8 +2134,19 @@ function computeLevel2Eligibility(sectors){
 
 
 // ═══ DATA ═══
-const PILOT={name:'KAYA Cem',license:'A-15523-JAR',licType:'ATPL',state:'Österreich/AUSTRIA',position:'Line Training Captain CL350',employer:'Vistajet Ltd',since:'2008',dob:'16 Dez. 1980',pob:'A-4810 Gmunden',address:'Freygasse 34 - 4810 Gmunden / AUSTRIA',mobile:'+43 699 10455 160',email:'cem.kaya@gmx.at',nationality:'AUSTRIA',landings:3549,totalTime:'6366h 1m',IFR:'6192h 9m',SE:'82h 32m',ME:'6278h 38m',JET:'5837h 14m',PICSU:'3642h 22m'};
+// 20 Sep 2026 fix: no real pilot identity ships in the public file anymore.
+// All fields blank by default — getPilotInfo() only shows real data once
+// someone fills in the Profile screen themselves (DB.profile.holder).
+const PILOT={name:'',license:'',licType:'',state:'',position:'',employer:'',since:'',dob:'',pob:'',address:'',mobile:'',email:'',nationality:'',landings:0,totalTime:'',IFR:'',SE:'',ME:'',JET:'',PICSU:''};
 const BASE_CBE=232.86;
+// 22 Sep 2026: APU/idle burn are aircraft-type-specific — only CL350's real values are known.
+// Any other type falls back to CL350's numbers (better than nothing) with an honest ⚠ flag
+// shown next to those two fields when in use, rather than a full sentence of explanation.
+const AC_ASSUMPTIONS={'Challenger 350':{apu:150,idle:350}};
+function getAcAssumptions(acType){
+  const known=AC_ASSUMPTIONS[acType];
+  return known?{...known,verified:true}:{...AC_ASSUMPTIONS['Challenger 350'],verified:false};
+}
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 // Deterministic date format ("30 Jun 2026") — identical on every browser/OS/locale,
 // avoiding toLocaleDateString differences that caused cut/odd dates on Android/Chrome.
@@ -2160,7 +2179,7 @@ function pdfShortDate(s){
   return m[1].padStart(2,'0')+m[2].slice(0,3).toUpperCase()+m[3].slice(2);
 }
 
-let DB={sectors:[],profile:{},level2:{byType:{}}};
+let DB={sectors:[],profile:{},level2:{byType:{}},fuelBank:{}};
 let saveStatus={artifact:false,local:false,lastSave:null};
 function loadData(){return DB;}
 function mergeSectors(a,b){const map=new Map();[...(a||[]),...(b||[])].forEach(s=>{if(s&&s.timestamp)map.set(s.timestamp,s);else if(s)map.set(JSON.stringify(s),s);});return [...map.values()].sort((x,y)=>(x.timestamp||0)-(y.timestamp||0));}
@@ -2196,7 +2215,10 @@ async function initStorage(){
     // so registration and crew-name history vanished on every reload despite having
     // saved correctly moments before.
     regNames:(fromArtifact&&fromArtifact.regNames)||(fromLocal&&fromLocal.regNames)||[],
-    crewNames:(fromArtifact&&fromArtifact.crewNames)||(fromLocal&&fromLocal.crewNames)||[]};
+    crewNames:(fromArtifact&&fromArtifact.crewNames)||(fromLocal&&fromLocal.crewNames)||[],
+    // 21 Sep 2026: per-tail cross-day fuel carryover note — see cross-day-tankering-spec.md.
+    // Survives date changes (unlike CL_STATE, which resets on date change by design).
+    fuelBank:(fromArtifact&&fromArtifact.fuelBank)||(fromLocal&&fromLocal.fuelBank)||{}};
   // 18 Sep 2026 fix: the four seed calls that used to run here (maybeSeedDemo19,
   // freshStartTrialPassed, seedReal17Jul2026, seedReal22Jul2026) were test/demo fixtures for
   // the rotation-test chat only. They auto-populate sample sectors + ELITE status on ANY
@@ -2276,7 +2298,7 @@ async function seedReal17Jul2026(){
     dep:l.dep, arr:l.arr, depTime:l.depTime, arrTime:l.arrTime,
     ac:'Challenger 350', acFull:'Challenger 350', reg:l.reg, totalTime:l.totalTime,
     landing:'DAY', crew:'Bianchi', remarks:l.remarks, flightType:l.flightType,
-    pax:l.pax, ferry:l.ferry, isTail:false, rules:'IFR', pf:false, training:false,
+    pax:l.pax, ferry:l.ferry, isTakeover:false,isHandover:false, rules:'IFR', pf:false, training:false,
     score:0, rawScore:0, cbeIndex:0, tasks:[], perfect:false, trainBonus:0, playMs:0,
     timestamp:Date.parse(l.depUTC)
   }));
@@ -2306,7 +2328,7 @@ async function seedReal22Jul2026(){
     dep:l.dep, arr:l.arr, depTime:l.depTime, arrTime:l.arrTime,
     ac:'Challenger 350', acFull:'Challenger 350', reg:'9H-CEA', totalTime:l.totalTime,
     landing:'DAY', crew:'Esteve', remarks:l.remarks, flightType:l.flightType,
-    pax:l.pax, ferry:l.ferry, isTail:false, rules:'IFR', pf:false, training:false,
+    pax:l.pax, ferry:l.ferry, isTakeover:false,isHandover:false, rules:'IFR', pf:false, training:false,
     score:0, rawScore:0, cbeIndex:0, tasks:[], perfect:false, trainBonus:0, playMs:0,
     timestamp:Date.parse(l.depUTC)
   }));
@@ -3202,7 +3224,15 @@ function clLoadTranscribed(){
   CL_STATE.stops=day.stops.map((s,i)=>{
     const prev=oldStopsByAirport[s.airport]||{};
     const isLastStop=(i===day.stops.length-1);
-    return {...s,id:prev.id||clUid(),
+    // 22 Sep 2026: real per-stop USD→EUR rate, derived from the flight pack's own fuel line
+    // rather than the static settings fallback (see cross-day-tankering-spec.md). Both figures
+    // (€/Ltr and $/USG) price the exact same fuel, so their ratio (after converting US gallons
+    // to litres) IS the real rate the company itself used that day. Only set when both real
+    // figures came back nonzero — otherwise stays undefined, and the tankering calc's existing
+    // fallback (the locked settings value) applies automatically, same as before this feature.
+    const usgToLtr=3.785411784;
+    const fxRate=(s.fuelPrice>0&&s.fuelPriceUsgUsd>0)?(s.fuelPrice/(s.fuelPriceUsgUsd/usgToLtr)):undefined;
+    return {...s,id:prev.id||clUid(),fxRate,
       apuUnder40:prev.apuUnder40!=null?prev.apuUnder40:null,
       apuNotRequired:prev.apuNotRequired!=null?prev.apuNotRequired:null,
       gpuNeeded:prev.gpuNeeded!=null?prev.gpuNeeded:(isLastStop?false:null),
@@ -3924,6 +3954,23 @@ function clSyncAll(){
 }
 
 function clCompute(){
+  // 22 Sep 2026: fields are locked (readonly) — this sets their displayed value from the
+  // correct aircraft type each time, then reads it back the same way as before. Single source
+  // of truth stays the AC_ASSUMPTIONS table above, not whatever a pilot could type in.
+  const acAssum=getAcAssumptions((flightLog&&flightLog.acType)||'Challenger 350');
+  const apuInput=document.getElementById('cl-setApu'), idleInput=document.getElementById('cl-setIdle');
+  if(apuInput)apuInput.value=acAssum.apu;
+  if(idleInput)idleInput.value=acAssum.idle;
+  // One compact badge on the section header, always showing which type these numbers are
+  // for — replaces two earlier per-field flags that only appeared for unverified types (so
+  // CL350 itself, the normal case, never showed anything at all).
+  const badgeEl=document.getElementById('ac-assum-badge');
+  if(badgeEl){
+    const code=acCode((flightLog&&flightLog.acType)||'Challenger 350');
+    badgeEl.textContent='· '+code+(acAssum.verified?'':' ⚠');
+    badgeEl.title=acAssum.verified?'APU/idle values shown are for '+code:'Not yet verified for '+code+' — showing CL350 values';
+  }
+
   const apuRate=parseFloat(document.getElementById('cl-setApu').value)||150;
   const idleRate=parseFloat(document.getElementById('cl-setIdle').value)||350;
   const fx=parseFloat(document.getElementById('cl-setFx').value)||0.92;
@@ -3931,6 +3978,12 @@ function clCompute(){
   // input needed here, keeping this area purely about documents and figures)
   const APU_THRESH_MIN=40; // ground-time CBE target (40 vs 80min baseline)
   let apuNon=0,apuCbe=0,taxiNon=0,taxiCbe=0,taxiApuNon=0,taxiApuCbe=0,toiletNon=0,toiletCbe=0,waterNon=0,waterCbe=0,gpuNon=0,gpuCbe=0,tankNon=0,tankCbe=0,burnNon=0,burnCbe=0;
+  // 23 Sep 2026: so the "Fuel tankering" line can explain itself instead of showing one
+  // unexplained lump number — a pilot who didn't make the original tankering call still
+  // deserves to see WHY a saving is on their sheet, not just that it's there. The split
+  // between "carried from an earlier leg" and "bought fresh right here" is already computed
+  // below; this just keeps it around long enough to display, instead of discarding it.
+  let tankBreakdown={carried:0,carriedOrigin:'',local:0};
   let apuHas=false,taxiApuHas=false,seHas=false,toiletHas=false,waterHas=false,gpuHas=false;
 
   CL_STATE.stops.forEach(s=>{
@@ -3973,12 +4026,26 @@ function clCompute(){
   // own OFP (savings rate, burn table) and own departure airport (price/density/fx) are used
   // for the pricing side of tankering/burn — while the SURPLUS AMOUNT itself is still measured
   // against the CURRENT leg's own OFP plan (how much more than THIS leg needs are we carrying).
-  const legsHaveRealRefuelData=CL_STATE.legs.some(x=>x.actualRefuelLtr!=null);
+  // 21 Sep 2026 fix: this previously checked `actualRefuelLtr`, a field name that was never
+  // actually written anywhere in the code — every real leg has `offBlockFuel`/`refuelQty`
+  // instead, so the walk-back silently never triggered and every leg was always priced using
+  // only its own data, even on days meant to test this exact mechanism. `refuelQty` (the real
+  // per-stop uplift — offBlockFuel minus whatever fuel carried in from the previous stop) is
+  // the correct, always-present signal for "did a real purchase happen here."
+  const legsHaveRealRefuelData=CL_STATE.legs.some(x=>x.offBlockFuel!=null);
   function clTankerLegIdx(idx){
     if(!legsHaveRealRefuelData) return idx; // older days: unchanged behavior
-    for(let j=idx;j>=0;j--){ if((CL_STATE.legs[j].actualRefuelLtr||0)>0) return j; }
+    for(let j=idx;j>=0;j--){ if((CL_STATE.legs[j].refuelQty||0)>0) return j; }
     return idx; // nothing found earlier in the day either — fall back to this leg's own data
   }
+
+  // 21 Sep 2026: cross-day tail-anchor carryover — see cross-day-tankering-spec.md.
+  // CL_STATE itself resets on every date change by design, so it has no memory of a previous
+  // day's fuel. DB.fuelBank is separate, persistent, and keyed by aircraft tail — it survives
+  // date changes. Read once here; only the FIRST leg of the day ever needs it directly, since
+  // same-day legs 2+ already chain correctly via the walk-back above. Written back after the
+  // loop below, using whatever the day's last leg leaves in the tanks.
+  const fbNote=(CL_STATE.tail&&DB.fuelBank&&DB.fuelBank[CL_STATE.tail])?DB.fuelBank[CL_STATE.tail]:null;
 
   CL_STATE.legs.forEach((l,idx)=>{
     const dep=CL_STATE.stops[l.depStop], arr=CL_STATE.stops[l.arrStop];
@@ -4068,12 +4135,77 @@ function clCompute(){
     const tDep=CL_STATE.stops[tLeg.depStop];
     const legFx=(tDep&&tDep.fxRate!=null&&!isNaN(tDep.fxRate))?tDep.fxRate:fx;
     const resultEur=(flownSurplusLbs/1000)*tLeg.ofpSavingsPerKlbs*legFx;
-    // Habitual baseline (Without CBE) = simply take what's planned, no discretionary extra —
-    // so it contributes nothing here. This real pilot's actual tankering call — gain or loss —
-    // lands entirely on the CBE side instead, so an unjustified loss shows as a genuine negative
-    // in Saved (hitting the bonus), not a quietly-forgiven zero. A good call (departure genuinely
-    // cheaper than destination) correctly rewards Saved the same way. tankNon stays at 0 by design.
-    tankCbe+=-resultEur;
+
+    // 21 Sep 2026 — Section 3.3 unified formula (see cross-day-tankering-spec.md), running per
+    // leg via a chained baseline/real landing-fuel tracker. This is a SEPARATE, additive credit
+    // from the flownSurplusLbs pricing above — one prices fuel carried BEYOND a leg's own plan
+    // (a fresh local tankering decision), the other prices fuel that REDUCED or ELIMINATED a
+    // local purchase because of carryover from an earlier leg or day. They never overlap: the
+    // unified formula only ever looks at (requirement vs. prior-leg carryover), never at this
+    // leg's own offBlockFuel directly, so a leg that also buys extra beyond plan (its own fresh
+    // decision) still gets that portion priced correctly, separately, by the block above.
+    //
+    // Suppression: the block above has one real failure mode — when walk-back finds NOTHING
+    // earlier (same-day or cross-day) and this leg itself bought nothing (refuelQty===0), it
+    // falls back to pricing carried-through fuel using THIS leg's own rate, which may be
+    // completely unrelated (even negative/uneconomical) to where that fuel actually came from.
+    // Caught by self-testing this build against the real 20→21 Sep numbers before handing it
+    // over — confirmed via ESSL→EGWU, where the old fallback would have applied ESSL's own
+    // unfavourable rate to fuel that was never bought at ESSL at all. Suppressed only in that
+    // exact case; every other case (a genuine same-day walk-back match, or a genuine fresh local
+    // purchase) is untouched.
+    const prevBaseline=(idx>0)?(CL_STATE.legs[idx-1]._baselineLanding??null):(fbNote?fbNote.baselineLandingFuel:null);
+    // 21 Sep 2026 fix: for a day's first leg, this used to trust the PREVIOUS day's stored
+    // note (fbNote.realLandingFuel) as "what's on board." Real 21 Sep data exposed why that's
+    // wrong: yesterday's confirmed on-block at ESSL was 7240, but today's real "REMAINING FUEL
+    // ON TAKEOVER" reading (confirmed by today's Teclog off-block) was 7100 — a genuine 140 lbs
+    // overnight gap (exactly the APU-burn/density variance Cem flagged when this feature was
+    // first designed). CL_STATE.takeoverFuel — the pilot's own real, entered reading, taken
+    // BEFORE any of today's purchases — is always ground truth over a stored prediction from
+    // yesterday. Falls back to the stored note only when no real reading exists yet (e.g. the
+    // pre-flight recommendation screen, before today's Teclog exists).
+    const prevReal=(idx>0)?(CL_STATE.legs[idx-1].onBlockFuel??null):((CL_STATE.takeoverFuel!=null)?CL_STATE.takeoverFuel:(fbNote?fbNote.realLandingFuel:null));
+    const prevRate=(idx>0)?(CL_STATE.legs[idx-1]._noteRate??null):(fbNote?fbNote.rate:null);
+    const prevOrigin=(idx>0)?(CL_STATE.legs[idx-1]._noteOrigin??null):(fbNote?fbNote.originAirport:null);
+    const noFallbackMatch=(tIdx===idx&&(l.refuelQty||0)===0&&prevBaseline!=null);
+
+    if(noFallbackMatch){
+      // suppressed — see note above; the unified credit below covers this leg instead
+    }else{
+      tankCbe+=-resultEur;
+      if(resultEur!==0) tankBreakdown.local+=-resultEur;
+    }
+
+    let carrySavingLbs=0;
+    if(prevBaseline!=null&&prevReal!=null){
+      const baselinePurchase=Math.max(0,l.ofpTotal-prevBaseline);
+      const realPurchase=Math.max(0,l.ofpTotal-prevReal);
+      carrySavingLbs=Math.max(0,baselinePurchase-realPurchase);
+      if(carrySavingLbs>0){
+        const carryEur=-(carrySavingLbs/1000)*(prevRate||0)*fx;
+        tankCbe+=carryEur;
+        tankBreakdown.carried+=carryEur;
+        if(!tankBreakdown.carriedOrigin) tankBreakdown.carriedOrigin=prevOrigin||'';
+      }
+    }
+
+    // Running trackers for the next leg (same-day) or, at the end of the day, for DB.fuelBank.
+    // Origin resets to THIS leg whenever a genuine local purchase happened here (refuelQty>0)
+    // — that becomes the new most-recent real transaction driving price for whatever it leaves
+    // behind. Otherwise (nothing bought here) the existing origin simply carries forward.
+    const clBaselineDeparture=(prevBaseline!=null)?Math.max(prevBaseline,l.ofpTotal):l.ofpTotal;
+    const clDeltaWeight=(l.offBlockFuel||0)-clBaselineDeparture;
+    const clBaselineBurnAdj=clDeltaWeight>0?clInterpBurn(l.burnTable,clDeltaWeight,l.burnAdjPer1000):0;
+    const clRealBurn=(l.offBlockFuel||0)-(l.onBlockFuel||0);
+    l._baselineLanding=clBaselineDeparture-Math.max(0,clRealBurn-clBaselineBurnAdj);
+    if((l.refuelQty||0)>0){
+      l._noteRate=l.ofpSavingsPerKlbs;
+      l._noteOrigin=(CL_STATE.stops[l.depStop]||{}).airport||'';
+    }else{
+      l._noteRate=prevRate; l._noteOrigin=prevOrigin;
+    }
+
+    if(!noFallbackMatch){
 
     // Extra burn from flying heavier than this leg's own OFP plan — reuses flownSurplusLbs
     // computed above. This loss only exists BECAUSE of the tankering decision — the habitual
@@ -4089,7 +4221,31 @@ function clCompute(){
     const extraBurnLbs=clInterpBurn(tLeg.burnTable,flownSurplusLbs,tLeg.burnAdjPer1000);
     const extraBurnCost=clLbsToEur(extraBurnLbs,tDep?.fuelPrice||1,tDep?.density);
     burnCbe+=extraBurnCost;
+    }
   });
+
+  // 21 Sep 2026: persist this tail's current carryover state for the next day (or next leg
+  // on this tail, whenever that is) — see cross-day-tankering-spec.md Section 3.1/3.2. Uses
+  // the LAST leg of today's rotation, since that's what's physically in the tanks going
+  // forward. If the tracked gap between real and baseline landing fuel has closed to ~zero,
+  // there's nothing left to carry — the note clears, ready for a fresh origin next time a
+  // leg creates new surplus. Known simplification (documented in the spec): this tracks one
+  // active origin/rate at a time rather than blending multiple differently-priced batches.
+  if(CL_STATE.tail&&CL_STATE.legs.length){
+    const lastIdx=CL_STATE.legs.length-1;
+    const lastLeg=CL_STATE.legs[lastIdx];
+    const lastBaseline=lastLeg._baselineLanding;
+    const lastReal=lastLeg.onBlockFuel;
+    if(lastBaseline!=null&&lastReal!=null){
+      DB.fuelBank=DB.fuelBank||{};
+      if(Math.abs(lastReal-lastBaseline)<1){
+        delete DB.fuelBank[CL_STATE.tail];
+      }else{
+        DB.fuelBank[CL_STATE.tail]={rate:lastLeg._noteRate,originAirport:lastLeg._noteOrigin,realLandingFuel:lastReal,baselineLandingFuel:lastBaseline,updatedDate:CL_STATE.date||''};
+      }
+      saveData(DB);
+    }
+  }
 
   const rows=[
     ['APU ground time (40 vs 80min)',apuNon,apuCbe,apuHas],
@@ -4109,8 +4265,12 @@ function clCompute(){
     }
     const mainRow=`<tr><td>${label}</td><td class="non">€${clEur(non)}</td><td class="cbe">€${clEur(cbe)}</td><td class="saved">€${clEur(non-cbe)}</td></tr>`;
     const tankeringNote=(label==='Fuel tankering'&&cbe<0)?`<tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:#8fe8c4;font-style:italic;background:#0f2e22;">💡 Negative here means your tankering decisions saved more than the fuel itself cost — a genuine gain, not an error.</td></tr>`:'';
+    // 23 Sep 2026: only shows on a day this actually applies — so a pilot who didn't make
+    // the original tankering call still sees where a saving on their own sheet came from,
+    // instead of one unexplained number. Silent on every normal day with nothing carried.
+    const tankBreakdownNote=(label==='Fuel tankering'&&tankBreakdown.carried<0)?`<tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:#7db8e8;font-style:italic;">↳ of which €${clEur(-tankBreakdown.carried)} carried from an earlier leg (${tankBreakdown.carriedOrigin||'—'})${tankBreakdown.local!==0?`, €${clEur(-tankBreakdown.local)} from today's own decision`:''}.</td></tr>`:'';
     const burnNote=(label==='Extra burn from tankering weight'&&cbe>0)?`<tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:#ffd76a;font-style:italic;background:#3a2e0a;">⚠ This is the real cost of carrying the extra tankered weight — it only applies With CBE, since the habitual baseline never tankered and never carried it. Nets against the tankering gain above.</td></tr>`:'';
-    return mainRow+tankeringNote+burnNote;
+    return mainRow+tankeringNote+tankBreakdownNote+burnNote;
   }).join('')+`<tr class="total"><td>Total</td><td class="non">€${clEur(totalNon)}</td><td class="cbe">€${clEur(totalCbe)}</td><td class="saved">€${clEur(totalNon-totalCbe)}</td></tr>`;
   document.getElementById('cl-tapeNon').textContent='€'+clEur(totalNon);
   document.getElementById('cl-tapeCbe').textContent='€'+clEur(totalCbe);
@@ -4387,9 +4547,9 @@ function renderDashboard(){
     return{name:m,key,data:found||null,target,prev,isCur:key===curMonthKey,isElite:eliteData?eliteData.isElite:false,justEntered:eliteData?eliteData.justEntered:false};
   });
   const latestMonth=months.length?months[months.length-1]:null;
-  const latestCBE=latestMonth?latestMonth.cbeIndex:BASE_CBE;
+  const latestCBE=latestMonth?latestMonth.cbeIndex:null;
   const prevMonth=months.length>1?months[months.length-2]:null;
-  const latestTrend=prevMonth?(latestCBE-prevMonth.cbeIndex):0;
+  const latestTrend=(prevMonth&&latestCBE!=null)?(latestCBE-prevMonth.cbeIndex):0;
 
   // ===== PERSONAL BESTS (self-competition) — game-played sectors only =====
   const secs=[...cbeSectors].sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
@@ -4436,7 +4596,7 @@ function renderDashboard(){
   <div>
     <div class="cbe-index-box">
       <div><div class="ci-label">CURRENT CBE INDEX (${latestMonth?MONTHS[parseInt(latestMonth.key.slice(5,7))-1]+' '+latestMonth.key.slice(0,4):'No data yet'})</div>
-      <div class="ci-val">${latestCBE.toFixed(2)}</div>
+      <div class="ci-val">${latestCBE!=null?latestCBE.toFixed(2):'—'}</div>
       <div style="font-size:8px;color:rgba(255,255,255,.45);margin-top:1px;letter-spacing:.2px;">📊 CBE Index = month score ÷ sectors</div></div>
       <div class="ci-trend" style="color:${latestTrend>0?'#4f4':'#f88'};">${latestTrend>0?'▲ +':'▼ '}${latestTrend.toFixed(2)}${prevMonth&&prevMonth.cbeIndex?' ('+(latestTrend>=0?'+':'-')+Math.abs(latestTrend/prevMonth.cbeIndex*100).toFixed(1)+'%)':''} vs prev month${latestIsElite?' <span style="background:rgba(255,215,0,.2);color:#ffd76b;font-size:9px;font-weight:800;padding:1px 6px;border-radius:8px;border:1px solid #7a6420;">⭐ ELITE</span>':''}</div>
       <div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,.5);">${latestTargetLbl} <span onclick="var e=document.getElementById('elite-info');e.style.display=e.style.display==='none'?'block':'none';" style="cursor:pointer;color:#9a8a4a;font-size:9px;border:1px solid #7a6a2a;border-radius:50%;padding:0 5px;margin-left:2px;">i</span></div>
@@ -4816,7 +4976,7 @@ function startGameFromLog(){
   const dep=(document.getElementById('fl-dep').value||'').toUpperCase().trim()||'XXXX';
   const arr=(document.getElementById('fl-arr').value||'').toUpperCase().trim()||'XXXX';
   const dv=document.getElementById('fl-date').value;
-  flightLog={dep,arr,depTime:'--:--',arrTime:'--:--',acType:document.getElementById('fl-type').value,reg:normReg(document.getElementById('fl-reg').value)||'9H-VCX',totalTime:'',pax:document.getElementById('fl-paxtype').value==='pax',pf:false,legNum:1,flightType:document.getElementById('fl-flighttype').value,isTail:document.getElementById('fl-tail').checked,isTraining:document.getElementById('fl-training').checked,date:dv?fmtDate(new Date(dv)):fmtDate(new Date()),rawDate:dv||new Date().toISOString().split('T')[0],monthKey:dv?dv.slice(0,7):`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`};
+  flightLog={dep,arr,depTime:'--:--',arrTime:'--:--',acType:document.getElementById('fl-type').value,reg:normReg(document.getElementById('fl-reg').value)||'9H-VCX',totalTime:'',pax:document.getElementById('fl-paxtype').value==='pax',pf:false,legNum:1,flightType:document.getElementById('fl-flighttype').value,isTakeover:document.getElementById('fl-takeover').checked,isHandover:document.getElementById('fl-handover').checked,isTraining:document.getElementById('fl-training').checked,date:dv?fmtDate(new Date(dv)):fmtDate(new Date()),rawDate:dv||new Date().toISOString().split('T')[0],monthKey:dv?dv.slice(0,7):`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`};
   // The in-game flight-pack upload task (and Cost Ledger's brief/ofp/teclog) live on
   // CL_STATE, which is otherwise untouched by starting a new flight — so without this,
   // yesterday's attached packs kept showing up here on a new flying day. Reusing clSetDate's
@@ -4847,7 +5007,12 @@ const TASKS=[
   {id:'upload_flightpack',wx:350,phase:'🚗 TRANSPORT',icon:'📎',when:'every',isFileUpload:true,
    q:'Attach flight pack (Brief / OFP / NOTAMs) — for this leg, or a new one filed later',
    note:'⚠ This tool is for performance optimising only — it is not a source of safety-of-flight information. Tankering, NOTAMs, and performance are always the pilot\'s own responsibility, from the official flight pack.'},
-  {id:'recommendations',wx:380,phase:'🚗 TRANSPORT',icon:'💡',when:'first',isInfoDisplay:true,
+  {id:'recommendations',wx:380,phase:'🚗 TRANSPORT',icon:'💡',when:'every',isInfoDisplay:true,
+   // 21 Sep 2026: was 'first' — only showed once, before the day's first leg. Cem's point:
+   // this is exactly the moment a pilot could act on a savings opportunity, and hiding it
+   // after leg 1 removes that trigger for every leg after the first. Shows every leg now;
+   // the screen itself already lists the WHOLE day's per-leg detail each time (see
+   // buildRecommendationHTML), so nothing else needs to change to make that useful later legs.
    q:'Today\'s cost recommendations'},
   {id:'crew_brief',wx:410,phase:'🚗 H→A TRANSPORT',icon:'🚗',when:'first',q:'Crew briefing done before flight day?',
    c:[{l:'YES',p:0,i:'✅',d:'Done'},{l:'NO',p:-20,i:'❌',d:'-20'}]},
@@ -4858,7 +5023,7 @@ const TASKS=[
   {id:'fuel_takeover',wx:760,phase:'🛫 PRE-FLIGHT',icon:'⛽',when:'first',isNumInput:true,
    note:'Fuel already onboard when you took over the aircraft — feeds the Cost Ledger\'s tankering calc.',
    q:'REMAINING FUEL ON TAKEOVER? (lbs)'},
-  {id:'to_handover',wx:831,phase:'🛫 PRE-FLIGHT',icon:'📚',when:'first',tail:true,q:'T/O HANDOVER MSG sent (to the company)?',
+  {id:'to_handover',wx:831,phase:'🛫 PRE-FLIGHT',icon:'📚',when:'first',takeoverOnly:true,q:'T/O HANDOVER MSG sent (to the company)?',
    c:[{l:'YES ✓',p:0,i:'📬',d:'Done!'},{l:'NO',p:-20,i:'📭',d:'-20!'}]},
   {id:'tire_pressure',wx:936,phase:'🛫 PRE-FLIGHT',icon:'🛞',when:'first',q:'TIRE PRESSURE check performed?',
    c:[{l:'YES ✓',p:0,i:'✅',d:'Done.'},{l:'NO — skipped',p:-30,i:'❌',d:'-30!'}]},
@@ -4926,7 +5091,7 @@ const TASKS=[
    c:[{l:'YES ✓',p:0,i:'✅',d:'Team!'},{l:'NO',p:-20,i:'❌',d:'-20!'}]},
   {id:'apu_post40',training:true,wx:3669,phase:'🧹 POST FLIGHT',icon:'⏲️',when:'last',q:'APU over 40 MIN after last flight?',
    c:[{l:'NO — off in time ✓',p:30,i:'✅',d:'+30!'},{l:'YES — over 40',p:0,i:'⏰',d:'Wasted.'},{l:'NO APU REQUIRED',p:50,i:'🚫',d:'+50!'}]},
-  {id:'ho_send',wx:3774,phase:'🧹 POST FLIGHT',icon:'📚',when:'last',tail:true,q:'HANDOVER MSG sent to incoming crew & the company?',
+  {id:'ho_send',wx:3774,phase:'🧹 POST FLIGHT',icon:'📚',when:'last',handoverOnly:true,q:'HANDOVER MSG sent to incoming crew & the company?',
    c:[{l:'YES ✓',p:0,i:'📬',d:'Done!'},{l:'NO',p:-20,i:'📭',d:'-20!'}]},
   {id:'clean_ac',wx:3879,phase:'🧹 POST FLIGHT',icon:'🧹',when:'last',tail:true,q:'A/C CLEANED for incoming crew?',
    c:[{l:'YES ✓',p:0,i:'✨',d:'Ready!'},{l:'NO',p:-20,i:'😤',d:'-20!'}]},
@@ -4946,81 +5111,81 @@ const TASK_VEHICLES={crew_brief:'taxi',transp_ha:'taxi',groundpow:'gpu',fuel_tan
 // LOFT-style unscripted moments. Never affect CBE score (all choices p:0, excluded from tot/dn).
 // ~1-in-3 flights get one, weighted heavily toward micro (single popup) with rare major (2-3 linked steps).
 const CB_MICRO=[
-  {id:'cb_freq',phase:'📻 UNSCRIPTED',icon:'📻',q:'ATC calls a sudden frequency change mid-taxi.',
+  {id:'cb_freq',phase:'📻 CREW TALK',icon:'📻',q:'ATC calls a sudden frequency change mid-taxi.',
    c:[{l:'SWITCH & CONFIRM',i:'✅',d:'Handled smoothly.',p:0,nopts:true},{l:'ACKNOWLEDGE, BRIEF DELAY',i:'🕐',d:'Handled — slight lag.',p:0,nopts:true}]},
-  {id:'cb_gate',phase:'📻 UNSCRIPTED',icon:'🚪',q:'Ground ops calls a last-minute gate change.',
+  {id:'cb_gate',phase:'📻 CREW TALK',icon:'🚪',q:'Ground ops calls a last-minute gate change.',
    c:[{l:'ADAPT ROUTE NOW',i:'🗺️',d:'Rerouted.',p:0,nopts:true},{l:'REQUEST SHORT HOLD',i:'✋',d:'Requested hold.',p:0,nopts:true}]},
-  {id:'cb_fatigue',phase:'📻 UNSCRIPTED',icon:'😴',q:'FO mentions feeling fatigued before push-back.',
+  {id:'cb_fatigue',phase:'📻 CREW TALK',icon:'😴',q:'FO mentions feeling fatigued before push-back.',
    c:[{l:'DISCUSS & MONITOR',i:'🗣️',d:'Addressed.',p:0,nopts:true},{l:'PROCEED, NOTE FOR DEBRIEF',i:'📝',d:'Noted.',p:0,nopts:true}]},
-  {id:'cb_fuelprice',phase:'📻 UNSCRIPTED',icon:'💡',q:'Dispatch flags a fuel price drop at destination.',
+  {id:'cb_fuelprice',phase:'📻 CREW TALK',icon:'💡',q:'Dispatch flags a fuel price drop at destination.',
    c:[{l:'ADJUST TANKERING PLAN',i:'💡',d:'Reconsidered.',p:0,nopts:true},{l:'KEEP ORIGINAL PLAN',i:'📋',d:'No change.',p:0,nopts:true}]},
-  {id:'cb_panel',phase:'📻 UNSCRIPTED',icon:'🔍',q:'Ramp agent flags a loose access panel on walkaround.',
+  {id:'cb_panel',phase:'📻 CREW TALK',icon:'🔍',q:'Ramp agent flags a loose access panel on walkaround.',
    c:[{l:'INSPECT & CONFIRM SECURE',i:'🔍',d:'Checked — OK.',p:0,nopts:true},{l:'CALL MAINTENANCE',i:'🔧',d:'MX notified.',p:0,nopts:true}]},
-  {id:'cb_catering',phase:'📻 UNSCRIPTED',icon:'🍽️',q:'Catering runs 15min late for a tight turnaround.',
+  {id:'cb_catering',phase:'📻 CREW TALK',icon:'🍽️',q:'Catering runs 15min late for a tight turnaround.',
    c:[{l:'WAIT — CONFIRM WITH PAX',i:'🍽️',d:'Waiting...',p:0,nopts:true},{l:'DEPART, CATER NEXT STOP',i:'✈️',d:'Adjusted.',p:0,nopts:true}]},
-  {id:'cb_wifi',phase:'📻 UNSCRIPTED',icon:'📶',q:'Cabin WiFi drops right after boarding.',
+  {id:'cb_wifi',phase:'📻 CREW TALK',icon:'📶',q:'Cabin WiFi drops right after boarding.',
    c:[{l:'TROUBLESHOOT ON GROUND',i:'🔧',d:'Checking...',p:0,nopts:true},{l:'BRIEF PAX, MONITOR ENROUTE',i:'🗣️',d:'Briefed.',p:0,nopts:true}]},
-  {id:'cb_noise',phase:'📻 UNSCRIPTED',icon:'🔇',q:'Noise abatement procedure changed at short notice.',
+  {id:'cb_noise',phase:'📻 CREW TALK',icon:'🔇',q:'Noise abatement procedure changed at short notice.',
    c:[{l:'REBRIEF DEPARTURE NOW',i:'📋',d:'Rebriefed.',p:0,nopts:true},{l:'CONFIRM WITH ATC FIRST',i:'📻',d:'Confirming...',p:0,nopts:true}]},
-  {id:'cb_paxreq',phase:'📻 UNSCRIPTED',icon:'🙋',q:'PAX requests a last-minute routing change to avoid weather.',
+  {id:'cb_paxreq',phase:'📻 CREW TALK',icon:'🙋',q:'PAX requests a last-minute routing change to avoid weather.',
    c:[{l:'DISCUSS OPTIONS WITH PAX',i:'🗣️',d:'Discussed.',p:0,nopts:true},{l:'EXPLAIN OPERATIONAL LIMITS',i:'📋',d:'Explained.',p:0,nopts:true}]}
 ];
 const CB_MAJOR=[
-  {id:'cb_wx',phase:'📻 UNSCRIPTED',icon:'⛈️',outcome:'Good judgment call, Captain.',
+  {id:'cb_wx',phase:'📻 CREW TALK',icon:'⛈️',outcome:'Good judgment call, Captain.',
    steps:[
      {q:'Weather ahead is deteriorating faster than forecast.',icon:'⛈️',
       c:[{l:'REASSESS ROUTE NOW',i:'🗺️',d:'Reassessing...',p:0,nopts:true},{l:'CONTINUE, MONITOR CLOSELY',i:'👁️',d:'Monitoring...',p:0,nopts:true}]},
      {q:'Divert airport is available but adds delay.',icon:'🛬',
       c:[{l:'DIVERT — SAFETY FIRST',i:'🛬',d:'Diverting...',p:0,nopts:true},{l:'PRESS ON WITHIN LIMITS',i:'➡️',d:'Continuing...',p:0,nopts:true}]}
    ]},
-  {id:'cb_medical',phase:'📻 UNSCRIPTED',icon:'🩺',outcome:'Well handled, Captain.',
+  {id:'cb_medical',phase:'📻 CREW TALK',icon:'🩺',outcome:'Well handled, Captain.',
    steps:[
      {q:'Cabin reports a passenger feeling unwell.',icon:'🩺',
       c:[{l:'ASSESS VIA CABIN CREW',i:'🩺',d:'Assessing...',p:0,nopts:true},{l:'REQUEST MEDICAL ADVICE LINE',i:'📞',d:'Calling MedLink...',p:0,nopts:true}]},
      {q:'Symptoms are mild but persistent.',icon:'🤔',
       c:[{l:'CONTINUE, MONITOR PAX',i:'👁️',d:'Monitoring...',p:0,nopts:true},{l:'CONSIDER DIVERSION',i:'🛬',d:'Considering...',p:0,nopts:true}]}
    ]},
-  {id:'cb_slot',phase:'📻 UNSCRIPTED',icon:'⏰',outcome:'Smart trade-off, Captain.',
+  {id:'cb_slot',phase:'📻 CREW TALK',icon:'⏰',outcome:'Smart trade-off, Captain.',
    steps:[
      {q:'ATC just pulled your departure slot — 40min delay.',icon:'⏰',
       c:[{l:'NEGOTIATE FOR EARLIER SLOT',i:'📞',d:'Negotiating...',p:0,nopts:true},{l:'ACCEPT, RE-BRIEF PAX',i:'📋',d:'Re-briefing...',p:0,nopts:true}]}
    ]},
-  {id:'cb_restreduction',phase:'📻 UNSCRIPTED',icon:'🛌',outcome:'Sound crew resource management, Captain.',
+  {id:'cb_restreduction',phase:'📻 CREW TALK',icon:'🛌',outcome:'Sound crew resource management, Captain.',
    steps:[
      {q:'Ops requests a REDUCED REST period before your next duty. Analyse with your crew.',icon:'🛌',
       c:[{l:'ACCEPT — WITHIN FTL LIMITS',i:'✅',d:'Accepted.',p:0,nopts:true},{l:'DECLINE — INSUFFICIENT REST',i:'🚫',d:'Declined.',p:0,nopts:true}]},
      {q:'Crew discusses fatigue risk mitigation for this rest period.',icon:'🗣️',
       c:[{l:'BRIEF FATIGUE MITIGATION',i:'🗣️',d:'Briefed.',p:0,nopts:true},{l:'REQUEST ADDITIONAL REST STOP',i:'🏨',d:'Requested.',p:0,nopts:true}]}
    ]},
-  {id:'cb_luggage',phase:'📻 UNSCRIPTED',icon:'🧳',outcome:'Handled within limits, Captain.',
+  {id:'cb_luggage',phase:'📻 CREW TALK',icon:'🧳',outcome:'Handled within limits, Captain.',
    steps:[
      {q:'PAX arrive with more luggage than the aircraft can carry. Analyse with your crew.',icon:'🧳',
       c:[{l:'OFFLOAD NON-ESSENTIAL ITEMS',i:'📦',d:'Offloading...',p:0,nopts:true},{l:'CHECK WEIGHT & BALANCE FIRST',i:'⚖️',d:'Checking...',p:0,nopts:true}]},
      {q:'Weight & balance confirms the aircraft limits.',icon:'⚖️',
       c:[{l:'SHIP EXCESS VIA CARGO',i:'📦',d:'Arranged.',p:0,nopts:true},{l:'POLITELY DECLINE EXCESS',i:'🙅',d:'Declined.',p:0,nopts:true}]}
    ]},
-  {id:'cb_apuinop',phase:'📻 UNSCRIPTED',icon:'⚙️',outcome:'Thought two steps ahead, Captain.',
+  {id:'cb_apuinop',phase:'📻 CREW TALK',icon:'⚙️',outcome:'Thought two steps ahead, Captain.',
    steps:[
      {q:'APU INOP is written up before departure. Analyse with your crew — consequences & requirements.',icon:'⚙️',
       c:[{l:'CHECK MEL FOR DISPATCH',i:'📋',d:'Checking MEL...',p:0,nopts:true},{l:'ASSESS GPU AVAILABILITY',i:'🔌',d:'Assessing...',p:0,nopts:true}]},
      {q:'Thinking forward — ground power at the NEXT stop too.',icon:'🔌',
       c:[{l:'ARRANGE GPU AT DEPARTURE & ARRIVAL',i:'🔌',d:'Arranged.',p:0,nopts:true},{l:'PLAN CROSSBLEED START AT NEXT STOP',i:'🔄',d:'Planned.',p:0,nopts:true}]}
    ]},
-  {id:'cb_deice',phase:'📻 UNSCRIPTED',icon:'❄️',outcome:'Clean wing confirmed, Captain.',
+  {id:'cb_deice',phase:'📻 CREW TALK',icon:'❄️',outcome:'Clean wing confirmed, Captain.',
    steps:[
      {q:'Conditions require DE-ICING before departure. Analyse with your crew.',icon:'❄️',
       c:[{l:'REQUEST DE-ICING NOW',i:'❄️',d:'Requested.',p:0,nopts:true},{l:'HOLD FOR FLUID TYPE BRIEFING',i:'📋',d:'Briefing...',p:0,nopts:true}]},
      {q:'Holdover time must be tracked from application.',icon:'⏱️',
       c:[{l:'BRIEF CREW ON HOLDOVER TIME',i:'🗣️',d:'Briefed.',p:0,nopts:true},{l:'RECHECK WING BEFORE TAKEOFF',i:'👁️',d:'Rechecked.',p:0,nopts:true}]}
    ]},
-  {id:'cb_crossbleed',phase:'📻 UNSCRIPTED',icon:'🔄',outcome:'Procedure briefed and flown correctly, Captain.',
+  {id:'cb_crossbleed',phase:'📻 CREW TALK',icon:'🔄',outcome:'Procedure briefed and flown correctly, Captain.',
    steps:[
      {q:'One engine requires a CROSSBLEED START. Analyse with your crew — what is the procedure?',icon:'🔄',
       c:[{l:'BRIEF CROSSBLEED PROCEDURE',i:'🗣️',d:'Briefed.',p:0,nopts:true},{l:'CONFIRM BLEED SOURCE FIRST',i:'✅',d:'Confirmed.',p:0,nopts:true}]},
      {q:'Bleed air source and start sequence confirmed.',icon:'✅',
       c:[{l:'PROCEED WITH CROSSBLEED START',i:'🔄',d:'Starting...',p:0,nopts:true},{l:'REQUEST GPU AIR INSTEAD',i:'🔌',d:'Requested.',p:0,nopts:true}]}
    ]},
-  {id:'cb_destchange',phase:'📻 UNSCRIPTED',icon:'🗺️',outcome:'Diversion planned thoroughly, Captain.',
+  {id:'cb_destchange',phase:'📻 CREW TALK',icon:'🗺️',outcome:'Diversion planned thoroughly, Captain.',
    steps:[
      {q:'PAX request a DIFFERENT DESTINATION mid-flight. Analyse with your crew — fuel, weather, permits.',icon:'🗺️',
       c:[{l:'CHECK FUEL & RANGE FIRST',i:'⛽',d:'Checking...',p:0,nopts:true},{l:'CHECK WEATHER AT NEW DEST',i:'🌦️',d:'Checking...',p:0,nopts:true}]},
@@ -5096,10 +5261,15 @@ function initWorld(){
   const isFirst=(ft==='first');
   G.isFirstFlight=isFirst;
   G.dayFinished=null;   // unknown until the in-game "day finished?" decision
-  const tailChange=!!flightLog.isTail;
+  // 21 Sep 2026: was a single "tail change" checkbox gating BOTH the takeover message (first
+  // leg) and the handover message (last leg) together — so checking it always asked both,
+  // even on a day where only one actually applies (e.g. taking over today but flying this
+  // tail for several more days before handing it over). Split into two specific flags.
+  const takingOver=!!flightLog.isTakeover;
+  const handingOver=!!flightLog.isHandover;
   G.tQueue=[...TASKS].filter(t=>{
-    // Tail-only tasks: require an aircraft/tail swap
-    if(t.tail && !tailChange)return false;
+    if(t.takeoverOnly && !takingOver)return false;
+    if(t.handoverOnly && !handingOver)return false;
     // PAX-only tasks: skip on ferry (non-pax) flights
     if(t.paxOnly && !flightLog.pax)return false;
     const w=t.when||'every';
@@ -5370,7 +5540,8 @@ function drawPilot(sx,y,f){
 }
 
 function drawHUDCanvas(){
-  ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(230,5,380,28);ctx.fillStyle='#00d4ff';ctx.font='7px monospace';ctx.fillText(`${flightLog.dep}→${flightLog.arr}  ${flightLog.depTime}→${flightLog.arrTime}  ${acCode(flightLog.acType)} ${flightLog.reg}`,238,17);ctx.fillStyle='#888';ctx.fillText(`Capt. Cem Kaya  Vistajet  ${flightLog.date}`,250,29);
+  const _pi=getPilotInfo();
+  ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(230,5,380,28);ctx.fillStyle='#00d4ff';ctx.font='7px monospace';ctx.fillText(`${flightLog.dep}→${flightLog.arr}  ${flightLog.depTime}→${flightLog.arrTime}  ${acCode(flightLog.acType)} ${flightLog.reg}`,238,17);ctx.fillStyle='#888';ctx.fillText(`${_pi.name||'Pilot'}  ${_pi.employer||''}  ${flightLog.date}`,250,29);
 }
 
 function getPilotY(){
@@ -5552,6 +5723,16 @@ function buildRecommendationHTML(includeDisclaimer=true){
   const todayISO=clDateToISO(flightLog&&flightLog.date)||new Date().toISOString().slice(0,10);
   const day=getKnownDay(todayISO);
   const disclaimer=includeDisclaimer?'<div style="text-align:left;font-size:9px;color:#ff9d7d;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #24313c;">⚠ Performance optimising only — not a source of safety-of-flight information. Tankering, NOTAMs, and performance remain the pilot\'s own responsibility, from the official flight pack.</div>':'';
+  // 21 Sep 2026: surface the tail's carried-over fuel note, if any, BEFORE the per-leg price
+  // detail — this is the one place a real fueling decision actually gets made, so it's the
+  // moment this needs to be visible to the pilot, not just used silently in scoring after the
+  // fact. See cross-day-tankering-spec.md.
+  const fbTail=day&&day.tail;
+  const fb=(fbTail&&DB.fuelBank&&DB.fuelBank[fbTail])?DB.fuelBank[fbTail]:null;
+  const fbBlock=fb?`<div style="text-align:left;margin-bottom:10px;padding:8px;background:#1b2a35;border-left:3px solid #7de8b8;border-radius:4px;">
+    <b style="color:#7de8b8;">⛽ ${fbTail} is already carrying surplus fuel</b><br>
+    <span style="color:#dce6f0;">From an earlier purchase at <b>${fb.originAirport||'—'}</b> (OFP rate €${fb.rate??'—'}/1000lbs). Factor this in before deciding how much more to take today — some or all of today's requirement may already be on board.</span>
+  </div>`:'';
   let html='';
   if(day&&Array.isArray(day.stops)&&day.stops.length){
     let recRows='';
@@ -5579,7 +5760,7 @@ function buildRecommendationHTML(includeDisclaimer=true){
         </div>`;
       }).join('');
     }
-    html=disclaimer+
+    html=disclaimer+fbBlock+
       '<div style="text-align:left;font-size:12px;color:#dce6f0;line-height:1.5;">'+
       (recRows?`<div style="margin-top:6px;color:#8fe8c4;font-weight:bold;">Per-leg detail</div>${recRows}`:'')+
       '</div>';
@@ -5590,7 +5771,7 @@ function buildRecommendationHTML(includeDisclaimer=true){
       ? `No cost data for today (<b>${todayISO}</b>) — but a flight pack <b>is</b> attached. Likely a date mismatch.`+
         (last.coverSnippet?` Cover page: <i>"${last.coverSnippet}…"</i> — check vs. today.`:' Tap 👁 View above to check its date.')
       : `Not yet available for today — attach today's flight pack first.`;
-    html=disclaimer+
+    html=disclaimer+fbBlock+
       '<div style="text-align:left;font-size:12px;color:#9fb8c8;">'+mismatchMsg+'</div>';
   }
   return html;
@@ -5665,7 +5846,12 @@ function showPopup(task){
   document.getElementById('pop-icon').textContent=task.icon;
   document.getElementById('pop-q').textContent=task.q;
   const noteEl=document.getElementById('pop-note');
-  if(task.note){noteEl.textContent=(/^attention/i.test(task.note)?'⚠ ':'ℹ️ ')+task.note;noteEl.classList.add('show');}
+  // 21 Sep 2026: pilots didn't understand what "UNSCRIPTED" meant or that these zero-score
+  // CRM prompts were meant to be talked through with a colleague, not answered silently alone
+  // — renamed the header to CREW TALK and added this note automatically for every curveball
+  // task, rather than repeating it in all ~14 individual task definitions.
+  if(task.isCurveball&&!task.note){noteEl.textContent='ℹ️ Discuss with your crew — doesn\'t affect your CBE score.';noteEl.classList.add('show');}
+  else if(task.note){noteEl.textContent=(/^attention/i.test(task.note)?'⚠ ':'ℹ️ ')+task.note;noteEl.classList.add('show');}
   else{noteEl.textContent='';noteEl.classList.remove('show');}
   const cc=document.getElementById('pop-cards');cc.innerHTML='';
   if(task.isNumInput){
@@ -5777,7 +5963,8 @@ function returnToFlightLogEntry(){
   setVal('fl-type',(flightLog&&flightLog.acType)||'Challenger 350');
   const paxSel=document.getElementById('fl-paxtype');if(paxSel)paxSel.value=(flightLog&&flightLog.pax===false)?'ferry':'pax';
   const ftSel=document.getElementById('fl-flighttype');if(ftSel)ftSel.value=(flightLog&&flightLog.flightType)||'first';
-  const tailCb=document.getElementById('fl-tail');if(tailCb)tailCb.checked=!!(flightLog&&flightLog.isTail);
+  const takeoverCb=document.getElementById('fl-takeover');if(takeoverCb)takeoverCb.checked=!!(flightLog&&flightLog.isTakeover);
+  const handoverCb=document.getElementById('fl-handover');if(handoverCb)handoverCb.checked=!!(flightLog&&flightLog.isHandover);
   const trainCb=document.getElementById('fl-training');if(trainCb)trainCb.checked=!!(flightLog&&flightLog.isTraining);
   ['fl-dep','fl-arr','fl-reg'].forEach(id=>markFilled(document.getElementById(id)));
   fireAirportHint(document.getElementById('fl-dep'),'fl-dep-name');
@@ -6285,13 +6472,12 @@ function renderFlightpackUploadBox(){
   const already=!clIsFirstLegOfDay()&&(CL_STATE.uploads.flightpack||[]).length>0;
   cc.innerHTML=`<div class="numin-wrap fp-upload-wrap${already?' fp-calm':''}" style="flex-direction:column;gap:10px;">
     <div class="fp-calm-note" id="fp-calm-note" style="display:${already?'block':'none'};">✅ Today's flight pack is already attached from an earlier leg — nothing to do here unless a NEW pack was filed later.</div>
-    <label class="cl-uploadbox" style="display:block;text-align:center;padding:14px;border:2px dashed #557;border-radius:8px;cursor:pointer;">
+    <label class="cl-uploadbox" style="display:block;text-align:center;padding:14px;border:2px dashed #557;border-radius:8px;cursor:pointer;color:#dce6f0;">
       <input type="file" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleFlightpackUpload(event)">
-      📎 Tap to attach photos or a PDF
+      📎 <b style="color:#7de8c4;">Upload flight pack here</b> — tap to attach a PDF or photos
     </label>
     <div style="font-size:9px;color:#8fa3b8;text-align:center;">PDFs: filtered automatically (cover/summary, briefings, OFP first page only — NOTAMs and passenger data dropped) — no extra steps. Photos: not filtered — avoid photographing gendec/passenger pages.</div>
     <div class="cl-thumbs" id="fp-thumbs" style="justify-content:center;"></div>
-    <button class="numin-btn" style="background:#3a2a6a;" onclick="autoTranscribeFlightpack()" id="autoTranscribeBtn">🤖 Read with Claude</button>
     <div id="autoTranscribeStatus" style="font-size:10px;color:#9fb8c8;text-align:center;"></div>
     <button class="numin-btn" onclick="pickFileUpload()">CONTINUE</button>
   </div>`;
@@ -6320,14 +6506,21 @@ function fpUpdateCalmState(){
 // Requires the site to be deployed with netlify/functions/transcribe-flightpack.js configured
 // (see README) — on claude.ai this button will simply fail with a network/404 error, which is
 // expected: the manual "send me the PDF in chat" path is what's used there instead.
+// 21 Sep 2026: was a separate "Read with Claude" button — a colleague testing the game
+// didn't understand it needed a second, distinct tap after attaching a file. Now fires
+// automatically once a file is attached, debounced so selecting several photos at once
+// (or a PDF plus photos) triggers one read after the last of them lands, not one per file.
+let fpAutoTranscribeTimer=null;
+function fpAutoTranscribeDebounced(){
+  clearTimeout(fpAutoTranscribeTimer);
+  fpAutoTranscribeTimer=setTimeout(()=>autoTranscribeFlightpack(),700);
+}
 async function autoTranscribeFlightpack(){
   const statusEl=document.getElementById('autoTranscribeStatus');
-  const btn=document.getElementById('autoTranscribeBtn');
   const list=CL_STATE.uploads.flightpack||[];
-  if(list.length===0){ if(statusEl)statusEl.textContent='Attach at least one photo or PDF first.'; return; }
+  if(list.length===0){ return; } // nothing attached yet — nothing to auto-read
   const dateISO=clDateToISO(flightLog&&flightLog.date)||new Date().toISOString().slice(0,10);
-  if(btn){btn.disabled=true;btn.textContent='🤖 Reading…';}
-  if(statusEl)statusEl.textContent='Sending '+list.length+' file(s) to Claude…';
+  if(statusEl){statusEl.textContent='🤖 Reading '+list.length+' file(s) automatically…';statusEl.style.color='#9fb8c8';}
   try{
     const files=[];
     for(const f of list){
@@ -6357,9 +6550,7 @@ async function autoTranscribeFlightpack(){
       statusEl.style.color='#7df59a';
     }
   }catch(e){
-    if(statusEl){statusEl.textContent='⚠ Could not auto-read: '+e.message;statusEl.style.color='#ff9d7d';}
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent='🤖 Read with Claude';}
+    if(statusEl){statusEl.textContent='⚠ Could not auto-read: '+e.message+' — you can still CONTINUE and fix this later.';statusEl.style.color='#ff9d7d';}
   }
 }
 // Teclog counterpart to autoTranscribeFlightpack — sends whatever's in CL_STATE.uploads.teclog
@@ -6457,6 +6648,7 @@ function handleFlightpackUpload(ev){
             el.innerHTML=note+viewBtn+coverLine;
             el.style.color=note.startsWith('⚠')?'#ff9d7d':'#7df59a';
           }
+          fpAutoTranscribeDebounced(); // 21 Sep 2026: auto-read, no separate button tap needed
         },
         afterCancel:()=>{}
       };
@@ -6477,6 +6669,7 @@ function handleFlightpackUpload(ev){
         CL_STATE.uploads.flightpack.push({id,name:f.name});
         clSaveState();
         renderFlightpackThumbs();
+        fpAutoTranscribeDebounced(); // 21 Sep 2026: auto-read, no separate button tap needed
       };
       img.src=e.target.result;
     };
@@ -7114,9 +7307,9 @@ function exportPDF(style,includeCBE,range){
   const qual=computeQualification(cbeSectors);
   const personalBase=(DB.profile&&DB.profile.baseline)||qual.baseline||null;
   const latestMonth=months.length?months[months.length-1]:null;
-  const latestCBE=latestMonth?latestMonth.cbeIndex:BASE_CBE;
+  const latestCBE=latestMonth?latestMonth.cbeIndex:null;
   const prevMonth=months.length>1?months[months.length-2]:null;
-  const latestTrend=prevMonth?(latestCBE-prevMonth.cbeIndex):0;
+  const latestTrend=(prevMonth&&latestCBE!=null)?(latestCBE-prevMonth.cbeIndex):0;
   const secs=[...cbeSectors].sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
   let bestCBE=null,bestScore=null,perfect=0,curStreak=0,bestStreak=0;
   secs.forEach(s=>{
@@ -7126,7 +7319,7 @@ function exportPDF(style,includeCBE,range){
     if((s.cbeIndex||0)>0){curStreak++;if(curStreak>bestStreak)bestStreak=curStreak;}else curStreak=0;
   });
   const KW=(cW-16)/3,KH=52;
-  [[0,'CBE INDEX',latestCBE.toFixed(2),(latestTrend>=0?'+':'')+latestTrend.toFixed(2)+(prevMonth&&prevMonth.cbeIndex?' ('+(latestTrend>=0?'+':'-')+Math.abs(latestTrend/prevMonth.cbeIndex*100).toFixed(1)+'%)':'')+' vs last month',latestTrend>=0?GREEN:RED,ACCENT],
+  [[0,'CBE INDEX',latestCBE!=null?latestCBE.toFixed(2):'—',(latestTrend>=0?'+':'')+latestTrend.toFixed(2)+(prevMonth&&prevMonth.cbeIndex?' ('+(latestTrend>=0?'+':'-')+Math.abs(latestTrend/prevMonth.cbeIndex*100).toFixed(1)+'%)':'')+' vs last month',latestTrend>=0?GREEN:RED,ACCENT],
    [1,'QUALIFICATION',qual.qualified?'QUALIFIED':qual.started?(qual.count+' / '+qual.required):'—',qual.qualified?('Band: '+BAND_LABEL[qual.band]):(qual.started?BAND_LABEL[qual.band]+' · '+(qual.daysLeft||0)+'d left':'Not started'),qual.qualified?GREEN:GREY,qual.qualified?GREEN:MED],
    [2,'PERSONAL BEST',bestCBE!=null?bestCBE.toFixed(2):'—','Best +'+(bestScore!=null?bestScore:'-')+' · Perfect '+perfect+' · Streak '+bestStreak,GOLD,GOLD]
   ].forEach(([i,lbl,big,sub,subCol,bigCol])=>{
@@ -8136,7 +8329,7 @@ function pfSaveQuickFlight(){
     flightType:document.getElementById('qf_flighttype').value,
     pax:paxType==='pax',
     ferry:paxType==='ferry',
-    isTail:false,
+    isTakeover:false,isHandover:false,
     rules:document.getElementById('qf_rules').value,
     pf:document.getElementById('qf_pf').checked,
     training:document.getElementById('qf_training').checked,
