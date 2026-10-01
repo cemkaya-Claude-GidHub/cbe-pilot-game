@@ -2241,7 +2241,15 @@ async function initStorage(){
 // that already ran the earlier v1 clean-up, which had kept the profile).
 function cleanStartKeep20Sep(){
   const KEEP='2026-09-20';
-  if(DB.profile&&DB.profile.cleanStart20260920_v2)return;
+  // Run-once marker lives in its OWN storage key, not only in the profile — otherwise "Clear
+  // all" (which resets the profile) or restoring an older backup (which replaces the profile)
+  // would remove the marker and silently re-run this wipe on the next load.
+  let doneKey=false; try{ doneKey=localStorage.getItem('cbe_clean_start_20260920')==='done'; }catch(e){}
+  if(doneKey||(DB.profile&&DB.profile.cleanStart20260920_v2)){
+    try{ localStorage.setItem('cbe_clean_start_20260920','done'); }catch(e){}
+    return;
+  }
+  try{ localStorage.setItem('cbe_clean_start_20260920','done'); }catch(e){}
   DB.sectors=(DB.sectors||[]).filter(s=>clDateToISO(s.date)===KEEP);
   try{ clSaveHistory(clLoadHistory().filter(x=>(clDateToISO(x.date)||x.date)===KEEP)); }catch(e){}
   try{ const dyn=loadDynamicKnownDays(); const k={}; if(dyn[KEEP])k[KEEP]=dyn[KEEP];
@@ -2903,7 +2911,16 @@ function clLoadTranscribed(){
       gpuMinutes:prev.gpuMinutes!=null?prev.gpuMinutes:null};
   });
   CL_STATE.legs=day.legs.map((l,i)=>{
-    const prev=oldLegs[i]||{};
+    // 2 Oct 2026: match the game's answers to the RIGHT leg by route (from→to), not by position.
+    // Real 20 Sep case: only LFPB→ESSL was played, so it sat at game position 0 — and by position
+    // its answers (taxi, APU, toilet/water) were wrongly glued onto LFMP→LFPB, the flight pack's
+    // leg 0. Position is only used as a fallback when both sides have the same legs in the same
+    // order but a route code is missing.
+    // Each game leg is used only once, so a day that flies the same route twice
+    // (e.g. LFMN→EGWU, EGWU→LFMN, LFMN→EGWU) gives each occurrence its own answers, in order.
+    let prev=oldLegs.find(o=>!o._used&&o.from&&o.to&&o.from===l.from&&o.to===l.to)
+      ||((oldLegs.length===day.legs.length&&oldLegs[i]&&!oldLegs[i]._used)?oldLegs[i]:null); // same leg count, route codes differ (e.g. typo) → old position match
+    if(prev) prev._used=true; else prev={};
     return {...l,id:prev.id||clUid(),depStop:i,arrStop:i+1,
       seOut:prev.seOut!=null?prev.seOut:null,
       seIn:prev.seIn!=null?prev.seIn:null,
@@ -3378,7 +3395,7 @@ function clRenderStops(){
       <div class="cl-card-h"><span>${s.airport} — ${s.label}</span><span class="tag">${s.phase}</span></div>
       ${i===0?`<div class="cl-flag" style="background:#0c2e1f;border-color:#16c79a;color:#16c79a;padding:3px 6px;font-size:10px;margin-bottom:6px;">✈ Fuel on takeover: ${CL_STATE.takeoverFuel!=null?CL_STATE.takeoverFuel+' lbs (from game)':'not entered yet — play the "REMAINING FUEL ON TAKEOVER" task in-game'}</div>`:''}
       <div class="cl-grid c3">
-        <div class="cl-fld"><label>Baseline APU (min)</label><input type="number" value="${s.baselineMin}" readonly onchange="clUpdStop(${i},'baselineMin',this.value)"></div>
+        <div class="cl-fld"><label>Baseline APU (min)</label><input type="number" value="${clApuBaselineMin(s,i)}" readonly onchange="clUpdStop(${i},'baselineMin',this.value)"></div>
         <div class="cl-fld"><label>APU status</label><div style="padding:6px 0;font-size:11px;">${s.apuNotRequired===true?'<span style="color:#16c79a;">✓ Not required (game)</span>':clBadge(s.apuUnder40,'Under 40 (game)','Over 40 (game)')}</div></div>
         <div class="cl-fld"><label>Fuel €/Ltr</label><input type="number" step="0.01" value="${s.fuelPrice}" readonly onchange="clUpdStop(${i},'fuelPrice',this.value)"></div>
       </div>
@@ -3720,7 +3737,12 @@ function clCompute(){
   // date changes. Read once here; only the FIRST leg of the day ever needs it directly, since
   // same-day legs 2+ already chain correctly via the walk-back above. Written back after the
   // loop below, using whatever the day's last leg leaves in the tanks.
-  const fbNote=(CL_STATE.tail&&DB.fuelBank&&DB.fuelBank[CL_STATE.tail])?DB.fuelBank[CL_STATE.tail]:null;
+  // 2 Oct 2026 fix: only a note written by an EARLIER day counts as carryover. Before, the
+  // day's own note (written by the previous calculation of this same day — e.g. the first half
+  // of SYNC) was read back as "yesterday's fuel", changing 20 Sep's With-CBE by ~€45 depending
+  // on how often it had been recalculated. A note from a LATER day is ignored too.
+  const fbRaw=(CL_STATE.tail&&DB.fuelBank&&DB.fuelBank[CL_STATE.tail])?DB.fuelBank[CL_STATE.tail]:null;
+  const fbNote=(fbRaw&&fbRaw.updatedDate&&CL_STATE.date&&fbRaw.updatedDate<CL_STATE.date)?fbRaw:null;
 
   CL_STATE.legs.forEach((l,idx)=>{
     const dep=CL_STATE.stops[l.depStop], arr=CL_STATE.stops[l.arrStop];
@@ -3911,7 +3933,9 @@ function clCompute(){
     const lastLeg=CL_STATE.legs[lastIdx];
     const lastBaseline=lastLeg._baselineLanding;
     const lastReal=lastLeg.onBlockFuel;
-    if(lastBaseline!=null&&lastReal!=null){
+    const existingNote=DB.fuelBank&&DB.fuelBank[CL_STATE.tail];
+    const laterDayOwnsNote=existingNote&&existingNote.updatedDate&&CL_STATE.date&&existingNote.updatedDate>CL_STATE.date;
+    if(lastBaseline!=null&&lastReal!=null&&!laterDayOwnsNote){ // never let re-opening an older day overwrite a newer day's note
       DB.fuelBank=DB.fuelBank||{};
       if(Math.abs(lastReal-lastBaseline)<1){
         delete DB.fuelBank[CL_STATE.tail];
@@ -5403,10 +5427,11 @@ function buildRecommendationHTML(includeDisclaimer=true){
   // moment this needs to be visible to the pilot, not just used silently in scoring after the
   // fact. See cross-day-tankering-spec.md.
   const fbTail=day&&day.tail;
-  const fb=(fbTail&&DB.fuelBank&&DB.fuelBank[fbTail])?DB.fuelBank[fbTail]:null;
+  const fbRaw=(fbTail&&DB.fuelBank&&DB.fuelBank[fbTail])?DB.fuelBank[fbTail]:null;
+  const fb=(fbRaw&&fbRaw.updatedDate&&fbRaw.updatedDate<todayISO)?fbRaw:null; // 2 Oct 2026: only an EARLIER day's note
   const fbBlock=fb?`<div style="text-align:left;margin-bottom:10px;padding:8px;background:#1b2a35;border-left:3px solid #7de8b8;border-radius:4px;">
     <b style="color:#7de8b8;">⛽ ${fbTail} is already carrying surplus fuel</b><br>
-    <span style="color:#dce6f0;">From an earlier purchase at <b>${fb.originAirport||'—'}</b> (OFP rate €${fb.rate??'—'}/1000lbs). Factor this in before deciding how much more to take today — some or all of today's requirement may already be on board.</span>
+    <span style="color:#dce6f0;">From an earlier purchase at <b>${fb.originAirport||'—'}</b> (OFP rate ${fb.rate??'—'} USD/1000lbs). Factor this in before deciding how much more to take today — some or all of today's requirement may already be on board.</span>
   </div>`:'';
   let html='';
   if(day&&Array.isArray(day.stops)&&day.stops.length){
