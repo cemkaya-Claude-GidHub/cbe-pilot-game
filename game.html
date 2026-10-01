@@ -1027,7 +1027,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
           <div class="cl-fld"><label title="Locked — set in code, not editable here">Density (kg/ltr) 🔒</label><input type="number" step="0.01" id="cl-setDensity" value="0.80" readonly style="background:#1c2530;cursor:not-allowed;"></div>
           <div class="cl-fld"><label title="Fallback only — used only if a stop's real flight-pack rate can't be read">USD→EUR (fallback) 🔒</label><input type="number" step="0.01" id="cl-setFx" value="0.92" readonly style="background:#1c2530;cursor:not-allowed;"></div>
         </div>
-        <div class="cl-flag">APU non-CBE baseline: 80 min (pre/post-flight) or full turnaround ground time if &lt;2h; CBE target &lt;40min. Toilet/Water/GPU fallback €100 until 100 real legs are on file, then switches to the rolling average automatically.</div>
+        <div class="cl-flag">APU non-CBE baseline: 80 min (pre/post-flight); turnaround = real ground time, max 80 min; CBE target &lt;40min. Toilet/Water/GPU fallback €100 until 100 real legs are on file, then switches to the rolling average automatically.</div>
       </details>
     </div>
   </div>
@@ -1356,8 +1356,11 @@ class MiniPDF{
       return;
     }
 
-    let downloaded=false;
-    try{const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);downloaded=true;}catch(e){}
+    // 1 Oct 2026: removed the automatic <a download>.click() that used to run here. On iPad
+    // Safari it navigated the tab straight to the raw PDF, so the pilot first landed on a bare
+    // PDF page and only reached this viewer (OPEN PDF · PRINT / CLOSE) via Safari's back arrow.
+    // The viewer is now the only screen; OPEN PDF · PRINT is the one path to the actual file.
+    const downloaded=false;
     // Pass the already-rendered canvases straight through — the preview needs
     // no external library and no network call, since we drew them ourselves.
     const canvases=this.pages.map(p=>p.canvas).filter(Boolean);
@@ -2226,8 +2229,34 @@ async function initStorage(){
   // a brand-new pilot fake flights and a fake CBE-CIRCLE badge instead of a genuine zero start.
   // Removed from production. The functions are left defined above (unused) rather than deleted,
   // in case a local test copy still wants to call them manually.
+  cleanStartKeep20Sep();
   dropStaleManualDuplicates();
   if(DB.sectors.length>0)await saveData(DB);
+}
+// 2 Oct 2026 — one-time FULL clean start (Cem's request): keep ONLY the 20 Sep 2026 flight
+// and its cost data on this device. Everything else is wiped: other flights, saved cost-days,
+// transcribed days, fuel carryover notes, the whole profile (name, licence, medical, photo,
+// lifetime baseline, trial status), salary, registration/crew-name lists, Level-2 quiz
+// progress and stored attachments. Runs once per device (flag v2 — also runs on a device
+// that already ran the earlier v1 clean-up, which had kept the profile).
+function cleanStartKeep20Sep(){
+  const KEEP='2026-09-20';
+  if(DB.profile&&DB.profile.cleanStart20260920_v2)return;
+  DB.sectors=(DB.sectors||[]).filter(s=>clDateToISO(s.date)===KEEP);
+  try{ clSaveHistory(clLoadHistory().filter(x=>(clDateToISO(x.date)||x.date)===KEEP)); }catch(e){}
+  try{ const dyn=loadDynamicKnownDays(); const k={}; if(dyn[KEEP])k[KEEP]=dyn[KEEP];
+       localStorage.setItem('cbe_dynamic_known_days',JSON.stringify(k)); }catch(e){}
+  // the Cost Ledger's last-open day (e.g. 29 Sep) — drop it unless it's 20 Sep, so the
+  // ledger opens on the pinned 20 Sep instead of an old, now-empty day
+  try{ const cd=JSON.parse(localStorage.getItem('cbe_cost_ledger_day')||'null');
+       if(cd&&(clDateToISO(cd.date)||cd.date)!==KEEP) localStorage.removeItem('cbe_cost_ledger_day'); }catch(e){}
+  try{ localStorage.removeItem('cbe_pilot_salary'); }catch(e){}
+  try{ indexedDB.deleteDatabase('cbe_photos_db'); }catch(e){}
+  DB.fuelBank={};
+  DB.regNames=[]; DB.crewNames=[];
+  DB.level2={byType:{}};
+  DB.profile={cleanStart20260920_v1:true,cleanStart20260920_v2:true};
+  saveData(DB);
 }
 // One-time reset: clear ALL sectors (demo + real) and mark the CBE-CIRCLE trial as already
 // passed via a manual override, so floor bonus / savings bonus are testable immediately —
@@ -2643,7 +2672,20 @@ function renderLevel2Review(tab,search){
 
 // ═══ COST LEDGER (Money Saving CBE vs Without CBE) ═══
 function clUid(){ return Math.random().toString(36).slice(2,9); }
-function clToMin(t){ if(!t) return null; const p=t.split(':').map(Number); return p[0]*60+p[1]; }
+// 1 Oct 2026: also accepts "0930"/"930" (no colon). Read with Claude returned 20 Sep's times as
+// "0930", which this used to turn into NaN — the taxi rows then displayed a fake €0,00 (clEur
+// hides NaN) and silently made the whole Total €0,00 too. Unreadable times still return null
+// (= 0 min via clDiffMin), never NaN.
+function clToMin(t){
+  if(t==null) return null;
+  const s=String(t).trim();
+  let h,m;
+  if(s.includes(':')){ const p=s.split(':'); h=parseInt(p[0],10); m=parseInt(p[1],10); }
+  else if(/^\d{3,4}$/.test(s)){ h=parseInt(s.slice(0,-2),10); m=parseInt(s.slice(-2),10); }
+  else return null;
+  if(isNaN(h)||isNaN(m)) return null;
+  return h*60+m;
+}
 function clDiffMin(t1,t2){ let a=clToMin(t1),b=clToMin(t2); if(a==null||b==null) return 0; let d=b-a; if(d<0)d+=1440; return d; }
 function clLbsToLtr(lbs,densityOverride){ const density=(densityOverride!=null&&!isNaN(densityOverride))?densityOverride:(parseFloat(document.getElementById('cl-setDensity').value)||0.8); return (lbs*0.453592)/density; }
 function clLbsToEur(lbs,price,densityOverride){ return clLbsToLtr(lbs,densityOverride)*price; }
@@ -2743,7 +2785,7 @@ async function idbPrefetchCurrentDay(){
 // "stage 0" blank-start behavior wanted for a new pilot's first visit ahead of the Netlify
 // deploy. Once a saved cbe_cost_ledger_day exists, clLoadState() returns that instead, same
 // as before, so this only affects brand-new/cleared devices.
-const CL_PINNED_DATE='2026-07-20';
+const CL_PINNED_DATE='2026-09-20'; // 2 Oct 2026: clean start opens on 20 Sep
 function clDefaultState(){
   const day=(typeof getKnownDay==='function')?getKnownDay(CL_PINNED_DATE):null;
   const state={
@@ -2766,389 +2808,11 @@ function clDefaultState(){
 // Real flying days Claude has transcribed from Teclog/OFP/Brief photos in chat.
 // This is completely separate from "Pull from CBE game" (which reads actual gameplay).
 // Nothing here is ever applied automatically — only via clLoadTranscribed(), on request.
-const CL_KNOWN_DAYS={
-  '2026-04-23':{
-    tail:'9H-VCV', flightNo:'VJT464',
-    stops:[
-      {airport:'EDDM',phase:'preflight',label:'Before Leg 1 (EDDM)',baselineMin:80,
-        fuelPrice:1.16,toiletPrice:68,waterPrice:68,gpuPrice:65,
-        note:'Brief: fuel €1.16/Ltr (BP EDDM). Toilet €68, Water €68 (separate figures, not combined this time). GPU €65/hr.'},
-      {airport:'EGKB',phase:'turnaround',label:'Turnaround EGKB (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:1.63,toiletPrice:88,waterPrice:0,gpuPrice:105,
-        note:'⚠ Brief prices at EGKB are in GBP (Toilet & Water combined £75 / GPU £90/hr, plus a separate £125 GPU start-up fee not modeled here) — converted at an approximate 1.17 GBP→EUR rate. Toilet+Water booked combined under Toilet. Ground time was 2h25m (>2h), so 80min baseline applies, not full turnaround. Confirm the real rate/policy you want used.'},
-      {airport:'LFMN',phase:'postflight',label:'After Leg 2 (LFMN)',baselineMin:80,
-        fuelPrice:1.21,toiletPrice:70,waterPrice:0,gpuPrice:110,
-        note:'Brief: fuel €1.21/Ltr (BP LFMN). Toilet+Water combined €70 (booked under Toilet). GPU €110/hr. Note: Brief warns of a €40,000 EU fine for APU violations at this airport.'},
-    ],
-    legs:[
-      {from:'EDDM',to:'EGKB',offBlock:'09:38',tO:'09:47',landing:'11:12',onBlock:'11:18',
-        offBlockFuel:10970,tOFuel:10904,landingFuel:8084,onBlockFuel:8040,refuelQty:10970,ofpTotal:11000,ofpSavingsPerKlbs:286,burnAdjPer1000:33},
-      {from:'EGKB',to:'LFMN',offBlock:'13:43',tO:'13:46',landing:'15:24',onBlock:'15:27',
-        offBlockFuel:7960,tOFuel:7938,landingFuel:4682,onBlockFuel:4660,refuelQty:0,ofpTotal:7900,ofpSavingsPerKlbs:-337,burnAdjPer1000:39},
-    ]
-  },
-  '2026-06-15':{
-    tail:'9H-VCS', flightNo:'VJT451 (Teclog shows VJT369K — same real flight, different system label)',
-    stops:[
-      {airport:'EIDW',phase:'preflight',label:'Before Leg 1 (EIDW)',baselineMin:80,
-        fuelPrice:0.97,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.97/Ltr (Shell EIDW). No toilet/water/GPU price stated on Brief (only a reliability note, no numbers) → €100 fallback.'},
-      {airport:'LFMV',phase:'turnaround',label:'Turnaround LFMV (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:1.28,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €1.28/Ltr (Total LFMV). No toilet/water/GPU price stated on Brief at all → €100 fallback. Ground time was 3h59m (>2h), so 80min baseline applies, not full turnaround.'},
-      {airport:'EIDW',phase:'postflight',label:'After Leg 2 (EIDW)',baselineMin:80,
-        fuelPrice:0.97,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.97/Ltr (Shell EIDW). No toilet/water/GPU price stated on Brief → €100 fallback.'},
-    ],
-    legs:[
-      {from:'EIDW',to:'LFMV',offBlock:'06:44',tO:'06:58',landing:'08:49',onBlock:'08:53',
-        offBlockFuel:10890,tOFuel:10787,landingFuel:7049,onBlockFuel:7020,refuelQty:10890,ofpTotal:11000,ofpSavingsPerKlbs:159,burnAdjPer1000:57},
-      {from:'LFMV',to:'EIDW',offBlock:'12:52',tO:'13:07',landing:'15:13',onBlock:'15:17',
-        offBlockFuel:6840,tOFuel:6730,landingFuel:2879,onBlockFuel:2850,refuelQty:0,ofpTotal:7250,ofpSavingsPerKlbs:-265,burnAdjPer1000:60},
-    ]
-  },
-  '2026-06-17':{
-    tail:'9H-VCS', flightNo:'VJT451 (Teclog shows VJT369K — same real flight, different system label)',
-    stops:[
-      {airport:'LPCS',phase:'preflight',label:'Before Leg 1 (LPCS)',baselineMin:80,
-        fuelPrice:1.40,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €1.40/Ltr. No toilet/water/GPU price on Brief → €100 fallback.'},
-      {airport:'LEVX',phase:'turnaround',label:'Turnaround LEVX (Leg1→Leg2)',baselineMin:97,
-        fuelPrice:1.40,toiletPrice:65,waterPrice:0,gpuPrice:186,
-        note:'⚠ Brief shows NO fuel price at LEVX (tanker restricted, nothing bought — reused LPCS price as a stand-in for burn-adj costing only). Toilet+Water combined €65 (booked under Toilet). GPU €186/hr.'},
-      {airport:'EGPK',phase:'turnaround',label:'Turnaround EGPK (Leg2→Leg3)',baselineMin:102,
-        fuelPrice:1.02,toiletPrice:41,waterPrice:41,gpuPrice:58,
-        note:'⚠ Brief prices at EGPK are in GBP (Toilet £35 / Water £35 / GPU £50/hr) — converted here at an approximate 1.17 GBP→EUR rate. Confirm the real rate/policy you want used.'},
-      {airport:'LFMN',phase:'postflight',label:'After Leg 3 (LFMN)',baselineMin:80,
-        fuelPrice:0.90,toiletPrice:70,waterPrice:0,gpuPrice:110,
-        note:'Brief: fuel €0.90/Ltr. Toilet+Water combined €70 (booked under Toilet). GPU €110.'},
-    ],
-    legs:[
-      {from:'LPCS',to:'LEVX',offBlock:'09:48',tO:'09:52',landing:'10:39',onBlock:'10:41',
-        offBlockFuel:5650,tOFuel:5620,landingFuel:3734,onBlockFuel:3720,refuelQty:5650,ofpTotal:5050,ofpSavingsPerKlbs:-243,burnAdjPer1000:17},
-      {from:'LEVX',to:'EGPK',offBlock:'12:18',tO:'12:22',landing:'14:17',onBlock:'14:21',
-        offBlockFuel:5660,tOFuel:5630,landingFuel:1700,onBlockFuel:1670,refuelQty:1940,ofpTotal:5600,ofpSavingsPerKlbs:-85,burnAdjPer1000:56},
-      {from:'EGPK',to:'LFMN',offBlock:'16:03',tO:'16:08',landing:'18:19',onBlock:'18:23',
-        offBlockFuel:6600,tOFuel:6565,landingFuel:2709,onBlockFuel:2680,refuelQty:4930,ofpTotal:6350,ofpSavingsPerKlbs:-129,burnAdjPer1000:56},
-    ]
-  },
-  '2026-07-13':{
-    tail:'9H-CEA', flightNo:'VJT408',
-    stops:[
-      {airport:'LOWW',phase:'preflight',label:'Before Leg 1 (LOWW)',baselineMin:80,
-        fuelPrice:0.77,toiletPrice:115.21,waterPrice:83.56,gpuPrice:236,
-        note:'Brief: fuel €0.77/Ltr. GPU €236/hr, Water €83.56, Toilet €115.21 (separate figures). Avoid AMEX — high surcharge.'},
-      {airport:'LDDU',phase:'turnaround',label:'Turnaround LDDU (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:0.76,toiletPrice:46,waterPrice:46,gpuPrice:95,
-        note:'Brief: fuel €0.76/Ltr. GPU €95/hr, Water €46, Toilet €46. Ground time ~79min, under 2h so standard 80min baseline applies.'},
-      {airport:'LIRA',phase:'turnaround',label:'Turnaround LIRA (Leg2→Leg3)',baselineMin:80,
-        fuelPrice:0.74,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.74/Ltr. No toilet/water/GPU price stated on Brief → €100 fallback. Ground time ~69min, under 2h.'},
-      {airport:'LIPY',phase:'postflight',label:'After Leg 3 (LIPY)',baselineMin:80,
-        fuelPrice:0.96,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.96/Ltr. No toilet/water/GPU price stated on Brief → €100 fallback.'},
-    ],
-    legs:[
-      {from:'LOWW',to:'LDDU',offBlock:'06:39',tO:'06:49',landing:'07:50',onBlock:'07:54',
-        offBlockFuel:5060,tOFuel:5060,landingFuel:2810,onBlockFuel:2810,refuelQty:0,ofpTotal:4050,ofpSavingsPerKlbs:-38,burnAdjPer1000:26},
-      {from:'LDDU',to:'LIRA',offBlock:'09:13',tO:'09:17',landing:'10:03',onBlock:'10:05',
-        offBlockFuel:4660,tOFuel:4660,landingFuel:2790,onBlockFuel:2790,refuelQty:1850,ofpTotal:4350,ofpSavingsPerKlbs:-18,burnAdjPer1000:10},
-      {from:'LIRA',to:'LIPY',offBlock:'11:14',tO:'11:19',landing:'11:57',onBlock:'12:00',
-        offBlockFuel:7300,tOFuel:7300,landingFuel:5900,onBlockFuel:5900,refuelQty:4510,ofpTotal:6950,ofpSavingsPerKlbs:116,burnAdjPer1000:11},
-    ]
-  },
-  '2026-07-14':{
-    tail:'9H-CEA', flightNo:'VJT408',
-    stops:[
-      {airport:'LIPY',phase:'preflight',label:'Before Leg 1 (LIPY)',baselineMin:80,
-        fuelPrice:0.96,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.96/Ltr ($4.16/USG, BP via Delta Aerotaxi). No toilet/water/GPU price stated on Brief → €100 fallback.'},
-      {airport:'LGMK',phase:'turnaround',label:'Turnaround LGMK (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:0,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'⚠ Brief shows NO fuel price at LGMK at all (blank FUEL block, no vendor/FBO price) — no refuel happened here anyway (tankered through from LIPY). No toilet/water/GPU price stated → €100 fallback. Ground time was 56min (<2h), standard 80min baseline applies.'},
-      {airport:'LFMN',phase:'turnaround',label:'Turnaround LFMN (Leg2→Leg3)',baselineMin:80,
-        fuelPrice:0.81,toiletPrice:70,waterPrice:0,gpuPrice:110,
-        note:'Brief: fuel €0.81/Ltr ($3.50/USG BP via Signature Aviation). Toilet+Water combined €70 (booked under Toilet). GPU €110/hr. Brief warns of a €40,000 EU fine for APU violations at this airport. Ground time was 1h34m (<2h), standard 80min baseline applies.'},
-      {airport:'ELLX',phase:'postflight',label:'After Leg 3 (ELLX)',baselineMin:80,
-        fuelPrice:0.74,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.74/Ltr ($3.18/USG Jetex via Luxair). No toilet/water/GPU price stated on Brief → €100 fallback. Brief note: "DO NOT leave without paying." Ops hours 0600–2300 LT. RWY 06 ILS U/S due to WIP — disregard all signals, false indication possible.'},
-    ],
-    legs:[
-      {from:'LIPY',to:'LGMK',offBlock:'06:22',tO:'06:26',landing:'08:01',onBlock:'08:02',
-        offBlockFuel:11750,tOFuel:11720,landingFuel:8237,onBlockFuel:8230,refuelQty:11750,ofpTotal:11500,ofpSavingsPerKlbs:-39,burnAdjPer1000:36},
-      {from:'LGMK',to:'LFMN',offBlock:'08:58',tO:'09:06',landing:'11:38',onBlock:'11:42',
-        offBlockFuel:8140,tOFuel:8080,landingFuel:3029,onBlockFuel:3000,refuelQty:0,ofpTotal:7650,ofpSavingsPerKlbs:-119,burnAdjPer1000:42},
-      {from:'LFMN',to:'ELLX',offBlock:'13:16',tO:'13:23',landing:'14:27',onBlock:'14:29',
-        offBlockFuel:4790,tOFuel:4738,landingFuel:2364,onBlockFuel:2350,refuelQty:0,ofpTotal:4550,ofpSavingsPerKlbs:-48,burnAdjPer1000:19},
-    ]
-  },
-  '2026-07-16':{
-    tail:'9H-CEA', flightNo:'VJT408',
-    stops:[
-      {airport:'EDDB',phase:'preflight',label:'Before Leg 1 (EDDB)',baselineMin:80,
-        fuelPrice:0.82,toiletPrice:90,waterPrice:80,gpuPrice:140,
-        note:'Brief: fuel €0.82/Ltr ($3.54/USG BP via BAS Berlin Aviation Service). GPU €140/hr, Water €80, Toilet €90 (separate figures). Note: crew must be escorted by handling agent to/from FBO, hi-vis vest required, no trash left on aircraft.'},
-      {airport:'LSGG',phase:'turnaround',label:'Turnaround LSGG (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:0.78,toiletPrice:85,waterPrice:85,gpuPrice:159,
-        note:'⚠ Brief prices at LSGG are in CHF (Toilet CHF80/service, Water CHF80/service, GPU CHF150/hr) — converted here at an approximate 1.06 CHF→EUR rate. Fuel €0.78/Ltr ($3.38/USG BP via Dassault Aviation Business Services). Confirm the real rate/policy you want used.'},
-      {airport:'LIRN',phase:'turnaround',label:'Turnaround LIRN (Leg2→Leg3)',baselineMin:80,
-        fuelPrice:0.78,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.78/Ltr ($3.37/USG via Cargo Air Chartering/Fly Service). No toilet/water/GPU price stated on Brief → €100 fallback. Special instruction: T100 — Crew Planning will assign a 2hr check-in where possible.'},
-      {airport:'LICB',phase:'postflight',label:'After Leg 3 (LICB)',baselineMin:80,
-        fuelPrice:0.83,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.83/Ltr ($3.60/USG via Nautilus/Fly Service). No toilet/water/GPU price stated on Brief → €100 fallback.'},
-    ],
-    legs:[
-      {from:'EDDB',to:'LSGG',offBlock:'07:26',tO:'07:32',landing:'08:49',onBlock:'08:54',
-        offBlockFuel:5100,tOFuel:5056,landingFuel:2546,onBlockFuel:2510,refuelQty:5100,ofpTotal:4800,ofpSavingsPerKlbs:0,burnAdjPer1000:35},
-      {from:'LSGG',to:'LIRN',offBlock:'09:53',tO:'10:04',landing:'11:31',onBlock:'11:33',
-        offBlockFuel:5200,tOFuel:5119,landingFuel:2584,onBlockFuel:2570,refuelQty:0,ofpTotal:4950,ofpSavingsPerKlbs:-90,burnAdjPer1000:32},
-      {from:'LIRN',to:'LICB',offBlock:'12:38',tO:'12:50',landing:'13:34',onBlock:'13:37',
-        offBlockFuel:7120,tOFuel:7032,landingFuel:5392,onBlockFuel:5370,refuelQty:4550,ofpTotal:6700,ofpSavingsPerKlbs:83,burnAdjPer1000:14},
-    ]
-  },
-  '2026-07-15':{
-    tail:'9H-CEA', flightNo:'VJT507L (Leg 3 shows VJT408 — same real flight, different system label)',
-    stops:[
-      {airport:'ELLX',phase:'preflight',label:'Before Leg 1 (ELLX)',baselineMin:80,
-        fuelPrice:0.74,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.74/Ltr ($3.18/USG Jetex via Luxair). No toilet/water/GPU price stated on Brief → €100 fallback. Brief note: "DO NOT leave without paying." Ops hours 0600–2300 LT.'},
-      {airport:'LFBH',phase:'turnaround',label:'Turnaround LFBH (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:1.34,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €1.34/Ltr ($5.80/USG WFS via Avia VIP) — notably expensive stop, which is exactly why OFP remarks show tankering through LFBH from ELLX instead of buying here. No toilet/water/GPU price stated on Brief → €100 fallback.'},
-      {airport:'LEIB',phase:'turnaround',label:'Turnaround LEIB (Leg2→Leg3)',baselineMin:80,
-        fuelPrice:0.81,toiletPrice:0,waterPrice:0,gpuPrice:80,
-        note:'Brief: fuel €0.81/Ltr ($3.50/USG BP via Avia VIP). Toilet/Water 1st service included (€0) per Brief; GPU €80/hr.'},
-      {airport:'EDDB',phase:'postflight',label:'After Leg 3 (EDDB)',baselineMin:80,
-        fuelPrice:0.82,toiletPrice:90,waterPrice:80,gpuPrice:140,
-        note:'Brief: fuel €0.82/Ltr ($3.54/USG BP via BAS Berlin Aviation Service). GPU €140/hr, Water €80, Toilet €90 (separate figures). Note: crew must be escorted by handling agent to/from FBO, hi-vis vest required, no trash left on aircraft. Special instruction: WiFi important to client — punctual, delay-sensitive pax.'},
-    ],
-    legs:[
-      {from:'ELLX',to:'LFBH',offBlock:'07:49',tO:'07:56',landing:'09:18',onBlock:'09:23',
-        offBlockFuel:11430,tOFuel:11380,landingFuel:7996,onBlockFuel:7960,refuelQty:11430,ofpTotal:8950,ofpSavingsPerKlbs:339,burnAdjPer1000:9},
-      {from:'LFBH',to:'LEIB',offBlock:'11:29',tO:'11:35',landing:'13:04',onBlock:'13:07',
-        offBlockFuel:7900,tOFuel:7856,landingFuel:5122,onBlockFuel:5100,refuelQty:0,ofpTotal:5200,ofpSavingsPerKlbs:-360,burnAdjPer1000:34},
-      {from:'LEIB',to:'EDDB',offBlock:'14:27',tO:'14:35',landing:'17:11',onBlock:'17:14',
-        offBlockFuel:7700,tOFuel:7641,landingFuel:2912,onBlockFuel:2890,refuelQty:2600,ofpTotal:7300,ofpSavingsPerKlbs:-42,burnAdjPer1000:74},
-    ]
-  },
-  '2026-07-17':{
-    tail:'9H-CEA (Leg 1-2) / 9H-VCZ (Leg 3)', flightNo:'VJT408 (Leg 1-2) / VJT409 (Leg 3)',
-    stops:[
-      {airport:'LICB',phase:'preflight',label:'Before Leg 1 (LICB)',baselineMin:80,
-        fuelPrice:0.83,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.83/Ltr ($3.60/USG via Nautilus/Fly Service). No toilet/water/GPU price stated on Brief → €100 fallback.',
-        notams:[]},
-      {airport:'LIRN',phase:'turnaround',label:'Turnaround LIRN (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:0.78,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.78/Ltr ($3.37/USG via Cargo Air Chartering/Fly Service). No toilet/water/GPU price stated on Brief → €100 fallback. Ground time ~55min, under 2h — standard 80min baseline applies.',
-        notams:[
-          {id:'A3270/26',effective:true,text:'Marshalling assistance mandatory for all movement to/from stand 74 (docking guidance system u/s).'},
-          {id:'A2778/26',effective:true,text:'RNP Y RWY24 (LPV only) approach completely withdrawn.'},
-          {id:'A2666/26',effective:true,text:'All stop bars unserviceable.'},
-          {id:'A2593/26',effective:true,text:'New ADS-B timing trial in effect — mandatory Mode A/ADS-B squawk procedure from push-back to parking for all IFR traffic.'},
-          {id:'A3620/26',effective:false,text:'Apron TWY \'TN\' partial closure — window closed 16 Jul 04:00, before this flight.'}
-        ]},
-      {airport:'LFMN',phase:'turnaround',label:'Turnaround LFMN (Leg2→Leg3)',baselineMin:80,
-        fuelPrice:0.81,toiletPrice:70,waterPrice:0,gpuPrice:110,
-        note:'Brief: fuel €0.81/Ltr ($3.50/USG BP via Signature Aviation). Toilet+Water combined €70 (booked under Toilet). GPU €110/hr. Brief warns of a €40,000 EU fine for APU violations at this airport. Ground time ~50min, under 2h — standard 80min baseline applies.',
-        notams:[
-          {id:'A4481/26',effective:true,text:'Runway confusion risk warning — mandatory use of RWY threshold/ident lights and PAPI for visual approach procedures.'},
-          {id:'A4358/26',effective:true,text:'TWY A3 closed.'},
-          {id:'A4150/26',effective:true,text:'New taxi instruction on TWY W and V per TWR instructions; simultaneous use possible except code E/F aircraft.'}
-        ]},
-      {airport:'LFML',phase:'postflight',label:'After Leg 3 (LFML)',baselineMin:80,
-        fuelPrice:0.77,toiletPrice:110,waterPrice:0,gpuPrice:70,
-        note:'Brief: fuel €0.77/Ltr ($3.32/USG Avfuel via Jetex). Toilet+Water combined €110 (booked under Toilet). GPU €70/hr. Brief warns of a €40,000 EU fine for APU violations at this airport (same warning as LFMN).',
-        notams:[
-          {id:'A4367/26',effective:true,text:'Marseille Provence frequency changes — Provence TWR/APP/INFO re-read on multiple frequencies.'},
-          {id:'A2971/26',effective:true,text:'GA parking restriction: max 2hr between arrival and departure unless pre-authorized by AD administration.'},
-          {id:'A2629/26',effective:true,text:'RWY 31R/31L simple TDZ lights unserviceable.'},
-          {id:'A4041/26',effective:false,text:'RNP X RWY31R minima changed (crane) — daily window 0530–1500 LT had closed before this flight\'s actual ~18:40 LT arrival.'},
-          {id:'A4040/26',effective:false,text:'RNP Y/Z RWY31R minima changed (crane) — same 0530–1500 LT window, closed before actual arrival.'}
-        ]},
-    ],
-    legs:[
-      // Legs 1-2 (9H-CEA): actual times/fuel from the real Journey Log (page 222, photo) —
-      // times are UTC/Zulu as printed on that form (Off Block/T.O./Landing/On Block), matching
-      // the "STD UTC" column on the Brief rather than the LT column used as a placeholder
-      // before. refuelQty for leg 2 = leg1 onBlockFuel(3140) vs leg2 offBlockFuel(5200) = fuel
-      // added at the LIRN turnaround; leg 1's refuel isn't derivable from this page, left at 0
-      // rather than guessed.
-      // Leg 3 (LFMN-LFML, 9H-VCZ) actuals now confirmed from that aircraft's own Journey Log
-      // (page 780) — off block 15:48, T.O. 16:00, landing 16:40, on block 16:43; fuel 4800/
-      // 4712/3320/3342, 1480lbs used, no refuel shown on that page (refuelQty left at 0).
-      {from:'LICB',to:'LIRN',offBlock:'10:45',tO:'10:49',landing:'11:43',onBlock:'11:44',
-        offBlockFuel:5300,tOFuel:5270,landingFuel:3147,onBlockFuel:3140,refuelQty:0,ofpTotal:5300,ofpSavingsPerKlbs:-117,burnAdjPer1000:17,
-        tankerAllowed:false,tankerNote:'OFP Leg 1 remarks: "DESTINATION IS A UNION AIRPORT, ECONOMIC TANKERING IS PROHIBITED."'},
-      {from:'LIRN',to:'LFMN',offBlock:'12:28',tO:'12:40',landing:'13:46',onBlock:'13:53',
-        offBlockFuel:5200,tOFuel:5112,landingFuel:2661,onBlockFuel:2610,refuelQty:2060,ofpTotal:4950,ofpSavingsPerKlbs:-4,burnAdjPer1000:14,
-        tankerAllowed:false,tankerNote:'OFP Leg 2 remarks: "DESTINATION IS A UNION AIRPORT, ECONOMIC TANKERING IS PROHIBITED."'},
-      {from:'LFMN',to:'LFML',offBlock:'15:48',tO:'16:00',landing:'16:40',onBlock:'16:43',
-        offBlockFuel:4800,tOFuel:4712,landingFuel:3342,onBlockFuel:3320,refuelQty:0,ofpTotal:4500,ofpSavingsPerKlbs:-4,burnAdjPer1000:6,
-        tankerAllowed:false,tankerNote:'OFP Leg 3 remarks: "DEST IS RESTRICTED UNION AIRPORT - ECONOMICAL TANK NOT AUTHORIZED."'},
-    ]
-  },
-  // 18 Jul 2026 — sourced from the pre-flight Flight Package (Brief + OFP + Company NOTAMs)
-  // only; no Journey Log/Teclog was part of this upload, so this is PLANNED data, not a
-  // flown record. Ground prices, tankering status, and OFP fuel/savings are real; the
-  // actual offBlock/T.O./landing/onBlock fuel readings aren't available yet and are left
-  // out rather than guessed — add them once the real Teclog for this day is transcribed.
-  // Neither leg's OFP remarks state a tankering restriction (unlike the 17 Jul Italy/France
-  // legs, which were EU/"Union airport" restricted) — Norway isn't in the EU customs union,
-  // so tankerAllowed is true here; the OFP SAVINGS line is just the economic rate, not a
-  // legal restriction.
-  '2026-07-18':{
-    tail:'9H-CEA', flightNo:'VJT408',
-    stops:[
-      {airport:'LFMN',phase:'preflight',label:'Before Leg 1 (LFMN)',baselineMin:80,
-        fuelPrice:0.81,toiletPrice:70,waterPrice:0,gpuPrice:110,
-        note:'Brief: fuel €0.81/Ltr ($3.50/USG BP via Signature Aviation). Toilet+Water combined €70 (booked under Toilet). GPU €110/hr. Brief warns of a €40,000 EU fine for APU violations at this airport.',
-        notams:[
-          {id:'A4481/26',effective:true,text:'Runway confusion risk warning — mandatory use of RWY threshold/ident lights and PAPI for visual approach procedures.'},
-          {id:'A4358/26',effective:true,text:'TWY A3 closed.'},
-          {id:'A4150/26',effective:true,text:'New taxi instruction on TWY W and V per TWR instructions; simultaneous use possible except code E/F aircraft.'}
-        ]},
-      {airport:'ENGM',phase:'turnaround',label:'Turnaround ENGM (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:0.79,toiletPrice:120,waterPrice:100,gpuPrice:160,
-        note:'Brief: fuel €0.79/Ltr ($3.43/USG BP via Executive Handling Sundt Air). Toilet €120, Water €100, GPU €160/hr (separate figures). Dishes included. Ground time ~1hr, under 2h — standard 80min baseline applies.',
-        notams:[
-          {id:'A2015/26',effective:true,text:'LPV minima suspended (RNP Z RWY 19R).'}
-        ]},
-      {airport:'ENBR',phase:'postflight',label:'After Leg 2 (ENBR)',baselineMin:80,
-        fuelPrice:0.86,toiletPrice:125,waterPrice:95,gpuPrice:0,
-        note:'Brief: fuel €0.86/Ltr ($3.74/USG BP via GA Partner). Toilet €125, Water €95 (separate figures). GPU: 60 min included — no €/hr rate stated, so no ongoing cost modeled here.',
-        notams:[
-          {id:'A1695/26',effective:true,text:'LPV minima suspended (RNP Z RWY 35).'}
-        ]},
-    ],
-    legs:[
-      {from:'LFMN',to:'ENGM',offBlock:'09:20',tO:null,landing:null,onBlock:null,
-        offBlockFuel:null,tOFuel:null,landingFuel:null,onBlockFuel:null,refuelQty:null,
-        ofpTotal:7900,ofpSavingsPerKlbs:-57,burnAdjPer1000:69,
-        tankerAllowed:true},
-      {from:'ENGM',to:'ENBR',offBlock:'13:00',tO:null,landing:null,onBlock:null,
-        offBlockFuel:null,tOFuel:null,landingFuel:null,onBlockFuel:null,refuelQty:null,
-        ofpTotal:4550,ofpSavingsPerKlbs:29,burnAdjPer1000:11,
-        tankerAllowed:true},
-    ]
-  },
-  '2026-07-22':{
-    tail:'9H-CEA', flightNo:'VJT408',
-    stops:[
-      {airport:'LFMN',phase:'preflight',label:'Before Leg 1 (LFMN)',baselineMin:80,
-        fuelPrice:0.93,toiletPrice:70,waterPrice:0,gpuPrice:110,
-        note:'Brief: fuel €0.93/Ltr ($4.01/USG BP via Signature Aviation). Toilet+Water combined €70 (booked under Toilet). GPU €110/hr. Brief warns of a €40,000 EU fine for APU violations at this airport.'},
-      {airport:'EGWU',phase:'turnaround',label:'Turnaround EGWU (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:1.22,toiletPrice:117,waterPrice:80,gpuPrice:111,
-        note:'Brief: fuel €1.22/Ltr ($5.27/USG WFS via Universal Aviation). ⚠ Toilet/Water/GPU prices at EGWU are in GBP (Toilet £100 / Water £68 / GPU £68 start-up + £95/hr ongoing) — converted here at an approximate 1.17 GBP→EUR rate, GPU modeled on the ongoing hourly rate only (start-up fee not included). Confirm the real rate/policy you want used. Ground time ~7h05m (09:35→16:43), well over 2h, but 80min baseline still applies per convention.'},
-      {airport:'EIDW',phase:'turnaround',label:'Turnaround EIDW (Leg2→Leg3)',baselineMin:80,
-        fuelPrice:0.91,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.91/Ltr ($3.94/USG Shell via Universal Aviation). No toilet/water/GPU price stated on Brief (only a reliability note — 3rd-party dependent, sometimes fails to provide) → €100 fallback. Brief warns: fuel early departures the day prior; double-bag trash; use APU covers (birds nest in inlet/exhaust). Ground time ~44min (17:48→18:32), under 2h — standard 80min baseline applies.'},
-      {airport:'LEMD',phase:'postflight',label:'After Leg 3 (LEMD)',baselineMin:80,
-        fuelPrice:0.90,toiletPrice:65,waterPrice:65,gpuPrice:85,
-        note:'Brief: fuel €0.90/Ltr ($3.88/USG BP via GAS Madrid). Toilet €65, Water €65 (separate figures). GPU €85/hr.'},
-    ],
-    legs:[
-      {from:'LFMN',to:'EGWU',offBlock:'07:35',tO:'07:53',landing:'09:35',onBlock:'09:38',
-        offBlockFuel:9250,tOFuel:9118,landingFuel:5772,onBlockFuel:5750,refuelQty:0,
-        ofpTotal:8700,ofpSavingsPerKlbs:171,burnAdjPer1000:46,
-        tankerAllowed:true},
-      {from:'EGWU',to:'EIDW',offBlock:'16:43',tO:'16:51',landing:'17:48',onBlock:'17:53',
-        offBlockFuel:5650,tOFuel:5591,landingFuel:3536,onBlockFuel:3500,refuelQty:0,
-        ofpTotal:5350,ofpSavingsPerKlbs:-205,burnAdjPer1000:16,
-        tankerAllowed:false,tankerNote:'OFP remarks: "DEST IS A RESTRICTED UNION APT, ECONOMIC TANKER NOT ALLOWED."'},
-      {from:'EIDW',to:'LEMD',offBlock:'18:32',tO:'18:41',landing:'20:44',onBlock:'20:50',
-        offBlockFuel:6250,tOFuel:6184,landingFuel:2534,onBlockFuel:2490,refuelQty:0,
-        ofpTotal:6050,ofpSavingsPerKlbs:-90,burnAdjPer1000:54,
-        tankerAllowed:false,tankerNote:'OFP remarks: "DEST IS A RESTRICTED UNION APT, ECONOMIC TANKER NOT ALLOWED."'},
-    ]
-  },
-  // 16 Sep 2026 — UPDATED with real flown data from the Journey Log (page 1207). Times below
-  // are the log's actual Off Block/T.O./Landing/On Block (UTC); fuel readings are the log's
-  // real lbs figures (Fuel Used column cross-checked: offBlockFuel-onBlockFuel matches exactly
-  // on all 3 legs). refuelQty derived from the fuel jump between legs (no refuel logged for
-  // leg 1 or leg 3 — leg 3's off-block fuel is actually lower than leg 2's on-block fuel, i.e.
-  // no uplift at EGWU); leg 2's refuel at LEVX = leg1 onBlockFuel(2310) vs leg2
-  // offBlockFuel(10300) = 7990 lbs, consistent with the log's refuel ticket (4628 ltr @ 0.787
-  // density ≈ 7990 lbs). Ground prices/tankering/OFP figures kept from the original
-  // flight-pack entry (unchanged — this session only added the actual flown numbers).
-  '2026-09-16':{
-    tail:'9H-VCP', flightNo:'VJT407',
-    stops:[
-      {airport:'LPCS',phase:'preflight',label:'Before Leg 1 (LPCS)',baselineMin:80,
-        fuelPrice:1.50,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €1.50/Ltr ($6.58/USG BP via Blue Aviation). No toilet/water/GPU price stated on Brief → €100 fallback each.'},
-      {airport:'LEVX',phase:'turnaround',label:'Turnaround LEVX (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:0.99,toiletPrice:65,waterPrice:0,gpuPrice:186,
-        note:'Brief: fuel €0.99/Ltr ($4.34/USG Avfuel via Aviation Handling/Universal Aviation — consistent across both packs). GPU €186/hr, Toilet+Water combined €65 (booked under Toilet). Ground time ~1h00m (10:10→11:10 UTC), under 2h — standard 80min baseline applies.'},
-      {airport:'EGWU',phase:'turnaround',label:'Turnaround EGWU (Leg2→Leg3)',baselineMin:80,
-        fuelPrice:1.41,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €1.41/Ltr ($6.18/USG WFS via Gama Aviation). No toilet/water/GPU price stated on either pack → €100 fallback each. Ground time ~2h35m (13:30→16:05 UTC), over 2h, but 80min baseline still applies per convention.'},
-      {airport:'LIRP',phase:'postflight',label:'After Leg 3 (LIRP)',baselineMin:80,
-        fuelPrice:0.94,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.94/Ltr ($4.15/USG Cargo Air Chartering via Avia VIP). No toilet/water/GPU price stated on Brief → €100 fallback each.'},
-    ],
-    legs:[
-      {from:'LPCS',to:'LEVX',offBlock:'09:09',tO:'09:14',landing:'10:05',onBlock:'10:12',
-        offBlockFuel:4280,tOFuel:4243,landingFuel:2361,onBlockFuel:2310,refuelQty:0,
-        ofpTotal:4400,ofpSavingsPerKlbs:-434,burnAdjPer1000:16,
-        burnTable:[{add:1000,burn:16},{add:2000,burn:33},{add:3000,burn:52}],
-        tankerAllowed:false,tankerNote:'OFP Leg 1 remarks: "LEVX IS A RESTRICTED UNION A/P - ECONOMIC TANKER NOT ALLOWED."'},
-      {from:'LEVX',to:'EGWU',offBlock:'11:15',tO:'11:20',landing:'13:14',onBlock:'13:18',
-        offBlockFuel:10300,tOFuel:10263,landingFuel:6599,onBlockFuel:6570,refuelQty:7990,
-        ofpTotal:10150,ofpSavingsPerKlbs:232,burnAdjPer1000:52,
-        burnTable:[{add:1000,burn:52},{add:2000,burn:108},{add:3000,burn:161}],
-        tankerAllowed:true,tankerNote:'OFP Leg 2 remarks: fuel planning tankering 10,150 lbs / 2 stage.'},
-      {from:'EGWU',to:'LIRP',offBlock:'15:56',tO:'16:01',landing:'17:44',onBlock:'17:50',
-        offBlockFuel:6430,tOFuel:6393,landingFuel:3194,onBlockFuel:3150,refuelQty:0,
-        ofpTotal:6000,ofpSavingsPerKlbs:-363,burnAdjPer1000:27,
-        burnTable:[{add:1000,burn:27},{add:2000,burn:64},{add:3000,burn:104}],
-        tankerAllowed:false,tankerNote:'OFP Leg 3 remarks: "USING FOB 6200 LBS EXPECTED REMAINING/DEST IS A RESTRICTED UNION APT, ECONOMIC TANKER NOT ALLOWED."'},
-    ]
-  },
-  // 17 Sep 2026 — real flown day, transcribed from the Journey Log (page 1208, photo) plus
-  // both flight packs (R0 pre-departure LIRP-ESSA-EGBB-EGKB, and R2 the ESSA-EGBB-EGKB
-  // revision with leg2's fuel qty updated). Times/fuel readings are the Journey Log's actual
-  // Off Block/T.O./Landing/On Block figures (UTC, matching the OFP's STD UTC convention) —
-  // Fuel Used cross-checked (offBlockFuel-onBlockFuel) exact on all 3 legs. refuelQty derived
-  // from the fuel-state jump between legs (leg 1 is the day's first leg, so its uplift isn't
-  // derivable this way and is left at 0 rather than guessed).
-  '2026-09-17':{
-    tail:'9H-VCP', flightNo:'VJT407',
-    stops:[
-      {airport:'LIRP',phase:'preflight',label:'Before Leg 1 (LIRP)',baselineMin:80,
-        fuelPrice:0.94,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'Brief: fuel €0.94/Ltr ($4.41/USG Cargo Air Chartering via Avia VIP, index 87.00). No toilet/water/GPU price stated on Brief → €100 fallback each.'},
-      {airport:'ESSA',phase:'turnaround',label:'Turnaround ESSA (Leg1→Leg2)',baselineMin:80,
-        fuelPrice:0,toiletPrice:100,waterPrice:100,gpuPrice:100,
-        note:'⚠ Both packs show a blank FUEL block for ESSA (no price/vendor) and a blank Briefing Notes section — no ground prices stated at all here. No toilet/water/GPU price stated → €100 fallback each. Ground time ~1h00m (10:20→11:20 UTC), under 2h — standard 80min baseline applies.'},
-      {airport:'EGBB',phase:'turnaround',label:'Turnaround EGBB (Leg2→Leg3)',baselineMin:80,
-        fuelPrice:1.21,toiletPrice:93.60,waterPrice:0,gpuPrice:70.20,
-        note:'Brief: fuel €1.21/Ltr ($5.34/USG WFS via XLR Executive Jet Centre, index 111.00). Toilet+Water combined £80 (booked under Toilet) — converted at an approximate 1.17 GBP→EUR rate ≈ €93.60. GPU 1st hr FOC, then £60/hr ≈ €70.20/hr (modeled on the ongoing rate only, start-up/free hour not included). Dishes included. Ground time ~1h22m (13:54→15:16 UTC), under 2h — standard 80min baseline applies.'},
-      {airport:'EGKB',phase:'postflight',label:'After Leg 3 (EGKB)',baselineMin:80,
-        fuelPrice:1.31,toiletPrice:87.75,waterPrice:0,gpuPrice:105.30,
-        note:'Brief: fuel €1.31/Ltr ($5.77/USG Jetex, index 130.00). Toilet+Water combined £75 (booked under Toilet), Dishes £25 (not modeled) — converted at ~1.17 GBP→EUR ≈ €87.75. GPU £125 start-up + £90/hr ongoing ≈ €105.30/hr (modeled on the ongoing rate only, start-up fee not included).'},
-    ],
-    legs:[
-      {from:'LIRP',to:'ESSA',offBlock:'07:29',tO:'07:42',landing:'10:09',onBlock:'10:20',
-        offBlockFuel:6430,tOFuel:6334,landingFuel:2050,onBlockFuel:1970,refuelQty:0,
-        ofpTotal:6350,ofpSavingsPerKlbs:110,burnAdjPer1000:77,
-        burnTable:[{add:1000,burn:77},{add:2000,burn:154},{add:3000,burn:233}],
-        tankerAllowed:false,tankerNote:'OFP Leg 1 remarks: "OTHER: ESSA - RESTRICTED UNION AIRPORT, ECONOMIC TANKERING NOT PERMITTED."'},
-      {from:'ESSA',to:'EGBB',offBlock:'11:20',tO:'11:29',landing:'13:50',onBlock:'13:54',
-        offBlockFuel:6240,tOFuel:6174,landingFuel:2009,onBlockFuel:1980,refuelQty:4270,
-        ofpTotal:5850,ofpSavingsPerKlbs:-64,burnAdjPer1000:62,
-        burnTable:[{add:1000,burn:62},{add:2000,burn:123},{add:3000,burn:190}],
-        tankerAllowed:true,tankerNote:'OFP remarks: "FUEL PLANNING: MINIMUM REQUIRED" — no legal tankering restriction stated, just uneconomical this leg (SAVINGS -64 USD/klbs).'},
-      {from:'EGBB',to:'EGKB',offBlock:'15:16',tO:'15:24',landing:'16:02',onBlock:'16:06',
-        offBlockFuel:7800,tOFuel:7741,landingFuel:6459,onBlockFuel:6430,refuelQty:5820,
-        ofpTotal:7550,ofpSavingsPerKlbs:119,burnAdjPer1000:13,
-        burnTable:[{add:1000,burn:13},{add:2000,burn:28},{add:3000,burn:44}],
-        tankerAllowed:true,tankerNote:'OFP remarks: "FUEL PLANNING: TANKERING PROFITABLE 7550LB" (SAVINGS +119 USD/klbs).'},
-    ]
-  }
-};
+// 2 Oct 2026: emptied at Cem's request — clean start for the live game. All hand-transcribed
+// days before 20 Sep were dropped (no longer relevant). 20 Sep itself lives in the device's
+// dynamic days (read via Read with Claude), so a later Teclog read can still update it —
+// putting it here would block that, since this table takes priority in getKnownDay().
+const CL_KNOWN_DAYS={};
 // Dynamic days: results Claude's API transcribed live (via the Netlify function), stored
 // locally so they persist across reloads without needing a code edit for every rotation.
 // CL_KNOWN_DAYS above stays as the hand-verified archive; this is the self-serve layer.
@@ -3436,7 +3100,7 @@ function clAppendLegFromFlightLog(entry){
     lastStop.phase='turnaround'; lastStop.label='Turnaround '+lastStop.airport;
     const prevLeg=CL_STATE.legs[CL_STATE.legs.length-1];
     const groundMin=clDiffMin(prevLeg.onBlock,entry.depTime);
-    lastStop.baselineMin=(groundMin>0&&groundMin<120)?groundMin:80;
+    lastStop.baselineMin=groundMin>0?Math.min(groundMin,80):80; // 2 Oct 2026: capped at 80
   }
   CL_STATE.stops.push({id:clUid(),airport:entry.arr,phase:'postflight',label:'After Leg '+(CL_STATE.legs.length+1)+' ('+entry.arr+')',baselineMin:80,
     fuelPrice:1.0,toiletPrice:100,waterPrice:100,gpuPrice:100,apuUnder40:null,gpuNeeded:null,note:'(price not yet set — send the Brief)'});
@@ -3891,7 +3555,7 @@ function clSyncFromGame(){
     let baselineMin=80;
     if(phase==='turnaround'){
       const groundMin=clDiffMin(newLegs[i-1].onBlock,newLegs[i].offBlock);
-      baselineMin=(groundMin>0&&groundMin<120)?groundMin:80;
+      baselineMin=groundMin>0?Math.min(groundMin,80):80; // 2 Oct 2026: capped at 80
     }
     const label= phase==='preflight'?('Before Leg 1 ('+ap+')'):(phase==='postflight'?('After Leg '+newLegs.length+' ('+ap+')'):('Turnaround '+ap));
     // apu_pre is asked before EVERY leg's departure — so stop i's APU status comes from leg i's
@@ -3953,6 +3617,12 @@ function clSyncAll(){
   banner.textContent=r1.message+'\n'+r2.message;
 }
 
+function clApuBaselineMin(s,si){
+  if(s.phase!=='turnaround') return 80;
+  const inLeg=CL_STATE.legs.find(l=>l.arrStop===si), outLeg=CL_STATE.legs.find(l=>l.depStop===si);
+  const groundMin=(inLeg&&outLeg)?clDiffMin(inLeg.onBlock,outLeg.offBlock):0;
+  return groundMin>0?Math.min(groundMin,80):80;
+}
 function clCompute(){
   // 22 Sep 2026: fields are locked (readonly) — this sets their displayed value from the
   // correct aircraft type each time, then reads it back the same way as before. Single source
@@ -3986,7 +3656,12 @@ function clCompute(){
   let tankBreakdown={carried:0,carriedOrigin:'',local:0};
   let apuHas=false,taxiApuHas=false,seHas=false,toiletHas=false,waterHas=false,gpuHas=false;
 
-  CL_STATE.stops.forEach(s=>{
+  CL_STATE.stops.forEach((s,si)=>{
+    // 2 Oct 2026 — APU baseline rule (confirmed by Cem), applied here to EVERY day so stored
+    // values (hand-transcribed days, or 0 from Read with Claude) can never disagree with it:
+    //   pre/post-flight = 80 min; turnaround = real ground time, capped at 80 min.
+    // A turnaround whose ground time can't be read (missing times) falls back to 80.
+    s.baselineMin=clApuBaselineMin(s,si);
     // APU ground time: baseline = habitual 80min/full-turnaround; CBE = 40min IF the game
     // confirms the threshold was met, else no saving shown (unknown or over-40 both fall back to baseline).
     const baselineLbs=(s.baselineMin/60)*apuRate;
