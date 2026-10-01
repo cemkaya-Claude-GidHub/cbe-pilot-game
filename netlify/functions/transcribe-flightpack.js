@@ -5,6 +5,11 @@
 // comes back as clean structured JSON (not prose to parse), and returns that JSON to the game.
 // The Anthropic API key lives ONLY here as a server-side environment variable — it is never
 // sent to, or visible from, the browser.
+//
+// 22 Sep 2026: real 20–21 Sep data showed the app's static fallback exchange rate (0.92) was
+// off by ~7% from the actual rate on the day. Every stop's fuel table already prints both
+// $/USG and EUR/Ltr for the same fuel — this now transcribes both raw figures directly (no
+// calculation here); game.html derives the real per-stop rate from them itself.
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-sonnet-5';
@@ -28,12 +33,13 @@ const FLIGHTPACK_TOOL = {
             label: { type: 'string' },
             baselineMin: { type: 'number' },
             fuelPrice: { type: 'number', description: 'EUR per litre. 0 if genuinely not stated on the Brief — never guess.' },
+            fuelPriceUsgUsd: { type: 'number', description: '21 Sep 2026: the same fuel line also prints a $/USG figure (US dollars per US gallon) — read it directly, exactly as printed. 0 if genuinely not stated. Do NOT convert or calculate anything here — the game derives the real EUR/USD rate itself from this plus fuelPrice.' },
             toiletPrice: { type: 'number', description: 'EUR. Use 100 as the fallback only if truly not stated.' },
             waterPrice: { type: 'number', description: 'EUR. Use 100 as the fallback only if truly not stated.' },
             gpuPrice: { type: 'number', description: 'EUR. Use 100 as the fallback only if truly not stated.' },
             note: { type: 'string', description: 'Where each figure came from, plus any currency conversion or fallback used.' }
           },
-          required: ['airport', 'phase', 'label', 'baselineMin', 'fuelPrice', 'toiletPrice', 'waterPrice', 'gpuPrice', 'note']
+          required: ['airport', 'phase', 'label', 'baselineMin', 'fuelPrice', 'fuelPriceUsgUsd', 'toiletPrice', 'waterPrice', 'gpuPrice', 'note']
         }
       },
       legs: {
@@ -101,7 +107,7 @@ exports.handler = async function (event) {
 
   const instruction = isTeclog
     ? `Attached is a Teclog / Journey Log for ${date}. Read the ACTUAL flown Off Block, T.O., Landing, On Block times and the actual fuel readings (Off Block, T.O., Landing, On Block, in lbs) for each leg. Derive refuelQty for each leg as the fuel-state jump from the previous leg's On Block fuel to this leg's Off Block fuel (0 for the day's first leg — that uplift isn't derivable this way). Call record_teclog_actuals with one entry per leg, matched by from/to airport codes.`
-    : `Attached is a flight pack (OFP/Brief) for ${date}. Transcribe every stop (preflight before leg 1, turnaround between legs, postflight after the last leg) and every leg into the record_flight_day tool. For each stop: fuelPrice in EUR/litre (0 if genuinely not stated — don't guess). toiletPrice/waterPrice/gpuPrice in EUR — convert GBP/USD at a sensible approximate rate and explain it in the note, or use 100 as the fallback only if truly not stated. For each leg: use the OFP's planned/computed figures (times are STD in UTC unless stated otherwise), the OFP TOTAL fuel figure as ofpTotal, the "SAVINGS=xxx(USD) PER KLBS" figure as ofpSavingsPerKlbs, the +1000LBS burn-off-adjustment row as burnAdjPer1000, and tankerAllowed/tankerNote from the OFP remarks (false + the quoted reason if remarks explicitly prohibit tankering, e.g. a restricted Union airport — true otherwise, even if uneconomical). Leave offBlockFuel/tOFuel/landingFuel/onBlockFuel/refuelQty at 0 on this pass — those come from the Teclog, not the OFP. Always explain sources/conversions/fallbacks in each stop's note field.`;
+    : `Attached is a flight pack (OFP/Brief) for ${date}. Transcribe every stop (preflight before leg 1, turnaround between legs, postflight after the last leg) and every leg into the record_flight_day tool. For each stop: fuelPrice in EUR/litre AND fuelPriceUsgUsd in $/USG — both are printed side by side on the same fuel line, read each one directly and exactly as printed, do not convert between them yourself (0 for either if genuinely not stated — never guess). toiletPrice/waterPrice/gpuPrice in EUR — convert GBP/USD at a sensible approximate rate and explain it in the note, or use 100 as the fallback only if truly not stated. For each leg: use the OFP's planned/computed figures (times are STD in UTC unless stated otherwise), the OFP TOTAL fuel figure as ofpTotal, the "SAVINGS=xxx(USD) PER KLBS" figure as ofpSavingsPerKlbs, the +1000LBS burn-off-adjustment row as burnAdjPer1000, and tankerAllowed/tankerNote from the OFP remarks (false + the quoted reason if remarks explicitly prohibit tankering, e.g. a restricted Union airport — true otherwise, even if uneconomical). Leave offBlockFuel/tOFuel/landingFuel/onBlockFuel/refuelQty at 0 on this pass — those come from the Teclog, not the OFP. Always explain sources/conversions/fallbacks in each stop's note field.`;
 
   const content = [{ type: 'text', text: instruction }];
   for (const f of files) {
