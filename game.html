@@ -991,10 +991,9 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
           <div class="cl-thumbs" id="cl-thumbTeclog"></div>
         </label>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-        <button class="numin-btn" style="background:#3a2a6a;flex:1;font-size:10px;padding:7px;" onclick="autoTranscribeTeclog()" id="autoTranscribeTeclogBtn">🤖 Read Teclog with Claude</button>
-      </div>
-      <div id="autoTranscribeTeclogStatus" style="font-size:9.5px;color:#9fb8c8;margin-bottom:10px;"></div>
+      <!-- 3 Oct 2026: no "Read Teclog with Claude" button anymore — the Teclog is read automatically
+           as soon as a photo or PDF is attached (same as the flight pack). Status shows here. -->
+      <div id="autoTranscribeTeclogStatus" style="font-size:10px;color:#9fb8c8;margin:2px 0 10px;">Attach the Teclog (photo or PDF) — it's read automatically.</div>
 
       <div class="cl-sec-title">02 · Ground stops — APU / Toilet / Water / GPU</div>
       <div class="cl-flag" style="margin-bottom:8px;font-size:11px;">🔒 All figures below are locked to real data — pulled from the CBE game or transcribed from your Brief/OFP/Teclog. Nothing here can be typed in by hand.</div>
@@ -3360,7 +3359,7 @@ function clHandleUpload(ev,kind){
     if(kind==='teclog'&&f.type==='application/pdf'){
       const dest={
         push:entry=>{ CL_STATE.uploads.teclog.push(entry); clSaveState(); },
-        afterConfirm:note=>{ clRenderUploads(); alert(note); },
+        afterConfirm:note=>{ clRenderUploads(); clTeclogAutoReadDebounced(); },
         afterCancel:()=>{}
       };
       f.arrayBuffer().then(arrBuf=>startFlightpackPdfReview(f,arrBuf,TECLOG_CATEGORIES,dest));
@@ -3391,6 +3390,7 @@ function clHandleUpload(ev,kind){
           return;
         }
         clRenderUploads();
+        if(kind==='teclog') clTeclogAutoReadDebounced();
       };
       img.src=e.target.result;
     };
@@ -6372,6 +6372,14 @@ async function autoTranscribeFlightpack(){
 // those into the existing known-day entry's legs (by matching from/to) rather than replacing
 // the whole day — the flight-pack read already supplied stops + OFP-planned figures; this only
 // fills in the actual-vs-planned fields that were left at 0.
+let clTeclogTimer=null;
+function clTeclogAutoReadDebounced(){
+  clearTimeout(clTeclogTimer);
+  const s=document.getElementById('autoTranscribeTeclogStatus');
+  if(s){ s.textContent='⏳ Teclog attached — reading in a moment…'; s.style.color='#9fc8ff'; }
+  // short wait so several photos picked at once are read together in one go
+  clTeclogTimer=setTimeout(()=>autoTranscribeTeclog(),1500);
+}
 async function autoTranscribeTeclog(){
   const statusEl=document.getElementById('autoTranscribeTeclogStatus');
   const btn=document.getElementById('autoTranscribeTeclogBtn');
@@ -6379,7 +6387,7 @@ async function autoTranscribeTeclog(){
   if(list.length===0){ if(statusEl)statusEl.textContent='Attach at least one Teclog photo or PDF first.'; return; }
   const dateISO=clDateToISO(CL_STATE.date)||clLocalISO();
   if(btn){btn.disabled=true;btn.textContent='🤖 Reading…';}
-  if(statusEl)statusEl.textContent='Sending '+list.length+' file(s) to Claude…';
+  if(statusEl){statusEl.textContent='🤖 Reading '+list.length+' Teclog file(s) with Claude…';statusEl.style.color='#9fc8ff';}
   try{
     const files=[];
     for(const f of list){
@@ -6416,7 +6424,7 @@ async function autoTranscribeTeclog(){
     clLoadTranscribed(); // pulls the merged figures straight into the open Cost Ledger view
     if(statusEl){statusEl.textContent='✅ Matched actual times/fuel into '+mergedCount+' of '+existingDay.legs.length+' leg(s) for '+dateISO+'.';statusEl.style.color='#7df59a';}
   }catch(e){
-    if(statusEl){statusEl.textContent='⚠ Could not auto-read: '+e.message;statusEl.style.color='#ff9d7d';}
+    if(statusEl){statusEl.innerHTML='⚠ Could not read the Teclog: '+String(e.message).replace(/</g,'&lt;')+' — <span onclick="autoTranscribeTeclog()" style="text-decoration:underline;cursor:pointer;color:#9fc8ff;">try again</span>';statusEl.style.color='#ff9d7d';}
   }finally{
     if(btn){btn.disabled=false;btn.textContent='🤖 Read Teclog with Claude';}
   }
