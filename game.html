@@ -1007,6 +1007,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       </details>
 
       <div class="cl-sec-title">04 · Today's cost analysis</div>
+      <div id="cl-warnBox"></div>
       <table class="cl-res">
         <thead><tr><th style="text-align:left;">Category</th><th>Without CBE</th><th>With CBE</th><th>Saved</th></tr></thead>
         <tbody id="cl-resBody"></tbody>
@@ -1996,7 +1997,15 @@ async function clBuildBackupBundle(){
     costLedgerDay: (CL_STATE|| clLoadState()),
     pilotSalary: pbLoadSalary(),
     photos, // all Brief/OFP/Teclog photo data, from IndexedDB — see clApplyRestoredBackup
-    _backupVersion: 3
+    // 3 Oct 2026 (v4): everything else the game keeps — before this, a backup silently left
+    // out all transcribed flight data (Brief prices, OFP figures, Teclog readings), the fuel
+    // carry notes, Level-2 progress and the registration/crew lists.
+    knownDays: loadDynamicKnownDays(),
+    fuelBank: DB.fuelBank||{},
+    level2: DB.level2||{byType:{}},
+    regNames: DB.regNames||[],
+    crewNames: DB.crewNames||[],
+    _backupVersion: 4
   };
 }
 // Triggers a real file download — the backup becomes an actual file on the device
@@ -2032,8 +2041,25 @@ async function backupData(btn){
 // both restore paths so they can never drift apart in what they actually restore.
 async function clApplyRestoredBackup(d){
   if(!d.sectors||!Array.isArray(d.sectors))throw new Error('not a valid backup');
-  DB={sectors:mergeSectors(DB.sectors,d.sectors),profile:d.profile||DB.profile||{}};
-  saveData(DB);
+  // 3 Oct 2026: this used to rebuild DB from sectors+profile only, silently DELETING the
+  // current Level-2 progress, reg/crew lists and fuel notes on every restore. Now every part is
+  // kept and merged with what the backup brings.
+  const uniq=(a,b)=>[...new Set([...(b||[]),...(a||[])])];
+  DB={...DB,
+    sectors:mergeSectors(DB.sectors,d.sectors),
+    // backup's profile wins (that's what a restore is for), but this device's clean-start
+    // markers are kept so a restore can never re-trigger the one-time clean-up
+    profile:d.profile?{...d.profile,...(DB.profile&&DB.profile.cleanStart20260920_v2?{cleanStart20260920_v1:true,cleanStart20260920_v2:true}:{})}:(DB.profile||{}),
+    level2:(d.level2&&d.level2.byType&&Object.keys(d.level2.byType).length)?d.level2:(DB.level2||{byType:{}}),
+    regNames:uniq(DB.regNames,d.regNames), crewNames:uniq(DB.crewNames,d.crewNames),
+    fuelBank:{...(d.fuelBank||{}),...(DB.fuelBank||{})}};
+  await saveData(DB);
+  if(d.knownDays&&typeof d.knownDays==='object'){
+    const cur=loadDynamicKnownDays();
+    // a day already on this device wins (it may hold newer Teclog readings than the backup)
+    const merged={...d.knownDays,...cur};
+    try{ localStorage.setItem('cbe_dynamic_known_days',JSON.stringify(merged)); }catch(e){}
+  }
 
   let restoredMsg=' '+DB.sectors.length+' sectors total.';
 
@@ -2793,7 +2819,7 @@ async function idbPrefetchCurrentDay(){
 // "stage 0" blank-start behavior wanted for a new pilot's first visit ahead of the Netlify
 // deploy. Once a saved cbe_cost_ledger_day exists, clLoadState() returns that instead, same
 // as before, so this only affects brand-new/cleared devices.
-const CL_PINNED_DATE='2026-09-20'; // 2 Oct 2026: clean start opens on 20 Sep
+const CL_PINNED_DATE=clLocalISO(); // 3 Oct 2026: a fresh Cost Ledger opens on today's UTC date (was pinned to a test day)
 function clDefaultState(){
   const day=(typeof getKnownDay==='function')?getKnownDay(CL_PINNED_DATE):null;
   const state={
@@ -2847,13 +2873,26 @@ function getKnownDay(dateStr){
 // A leg or stop the new pack doesn't mention at all (e.g. sector 3 still "Pending" in an
 // early pack) is simply not merged over — and a leg/stop that's brand new (present in the
 // incoming pack but not seen before) gets appended. Added 21 Jul 2026.
+// 3 Oct 2026: match items of two ordered lists IN SEQUENCE, using each old item only once and
+// never going backwards. Matching stops by airport name alone (a lookup table keyed by airport)
+// made a day like LFMN→EGWU→LFMN→LIML share ONE set of answers/prices for both LFMN stops.
+// 3 Oct 2026 (Cem): the game works in UTC, like the Teclog and OFP — "today" is the UTC date.
+function clLocalISO(d){ d=d||new Date(); return d.toISOString().slice(0,10); }
+function clSeqMatch(oldArr,newArr,eq){
+  const used=new Set(); let from=0;
+  return (newArr||[]).map(n=>{
+    for(let j=from;j<(oldArr||[]).length;j++){ if(!used.has(j)&&eq(oldArr[j],n)){ used.add(j); from=j+1; return oldArr[j]; } }
+    return null;
+  });
+}
 function mergeIncomingDayData(existingDay,incomingDay){
   if(!existingDay)return incomingDay;
   if(!incomingDay)return existingDay;
   const pick=(a,b)=>(b===null||b===undefined||b==='')?a:b; // b (incoming) wins whenever it actually has a value
   const mergedStops=(existingDay.stops||[]).map(s=>({...s}));
-  (incomingDay.stops||[]).forEach(inS=>{
-    const match=mergedStops.find(s=>s.airport===inS.airport);
+  const stopMatch=clSeqMatch(mergedStops,incomingDay.stops,(a,b)=>a.airport===b.airport);
+  (incomingDay.stops||[]).forEach((inS,ii)=>{
+    const match=stopMatch[ii];
     if(!match){ mergedStops.push({...inS}); return; }
     Object.keys(inS).forEach(k=>{
       if(k==='notams'){
@@ -2866,10 +2905,24 @@ function mergeIncomingDayData(existingDay,incomingDay){
   });
   const mergedLegs=(existingDay.legs||[]).map(l=>({...l}));
   let newLegCount=0,updatedLegCount=0;
-  (incomingDay.legs||[]).forEach(inL=>{
-    const match=mergedLegs.find(l=>l.from===inL.from&&l.to===inL.to);
+  const legMatch=clSeqMatch(mergedLegs,incomingDay.legs,(a,b)=>a.from===b.from&&a.to===b.to);
+  (incomingDay.legs||[]).forEach((inL,ii)=>{
+    const match=legMatch[ii];
     if(!match){ mergedLegs.push({...inL}); newLegCount++; return; }
-    Object.keys(inL).forEach(k=>{ match[k]=pick(match[k],inL[k]); });
+    // 2 Oct 2026: a flight-pack read always returns the real fuel readings as 0 ("those come from
+    // the Teclog"), and pick() let that 0 overwrite real Teclog readings already on file — so
+    // re-attaching a flight pack after the Teclog silently wiped 20 Sep's actual fuel. A 0 from
+    // the incoming read never replaces a real (non-zero) reading anymore.
+    // (This merge is only used for flight-pack reads.) Once a leg has real Teclog readings, its
+    // real flown times also stay — the flight pack only knows the planned times.
+    const FUEL_ACTUALS=['offBlockFuel','tOFuel','landingFuel','onBlockFuel','refuelQty'];
+    const TIMES=['offBlock','tO','landing','onBlock'];
+    const hasTeclog=FUEL_ACTUALS.some(f=>Number(match[f])>0);
+    Object.keys(inL).forEach(k=>{
+      if(FUEL_ACTUALS.includes(k)&&Number(inL[k])===0&&Number(match[k])>0) return;
+      if(hasTeclog&&TIMES.includes(k)&&match[k]) return;
+      match[k]=pick(match[k],inL[k]);
+    });
     updatedLegCount++;
   });
   return {
@@ -2881,7 +2934,7 @@ function mergeIncomingDayData(existingDay,incomingDay){
   };
 }
 function clLoadTranscribed(){
-  const dEl=document.getElementById('cl-dateField'); if(dEl&&dEl.value) CL_STATE.date=dEl.value; // read the field directly — don't rely on onchange having fired yet
+  const dEl=document.getElementById('cl-dateField'); if(!CL_HEADLESS&&dEl&&dEl.value) CL_STATE.date=dEl.value; // read the field directly — don't rely on onchange having fired yet
   const dateStr=CL_STATE.date;
   const day=getKnownDay(dateStr);
   if(!day){ return {ok:false,message:'📋 Teclog/OFP: no transcribed data on file for '+dateStr+' yet — send me the photos in chat and I\'ll add it.'}; }
@@ -2889,12 +2942,12 @@ function clLoadTranscribed(){
   // fields, and always preserves any game data already pulled), so there's nothing to protect
   // against by asking, and a confirm() dialog is just a place users can silently get stuck if
   // it's dismissed or tapped away without noticing.
-  const oldLegs=CL_STATE.legs.slice(), oldStopsByAirport={};
-  CL_STATE.stops.forEach(s=>{ oldStopsByAirport[s.airport]=s; });
+  const oldLegs=CL_STATE.legs.slice();
+  const oldStopMatch=clSeqMatch(CL_STATE.stops,day.stops,(a,b)=>a.airport===b.airport);
 
   CL_STATE.tail=day.tail; CL_STATE.flightNo=day.flightNo;
   CL_STATE.stops=day.stops.map((s,i)=>{
-    const prev=oldStopsByAirport[s.airport]||{};
+    const prev=oldStopMatch[i]||{};
     const isLastStop=(i===day.stops.length-1);
     // 22 Sep 2026: real per-stop USD→EUR rate, derived from the flight pack's own fuel line
     // rather than the static settings fallback (see cross-day-tankering-spec.md). Both figures
@@ -2937,7 +2990,8 @@ function clLoadState(){
   try{ const raw=localStorage.getItem('cbe_cost_ledger_day'); return raw?JSON.parse(raw):clDefaultState(); }
   catch(e){ return clDefaultState(); }
 }
-function clSaveState(){ localStorage.setItem('cbe_cost_ledger_day', JSON.stringify(CL_STATE)); }
+let CL_HEADLESS=false; // 3 Oct 2026: true while days are recalculated silently in the background (no screen/storage writes)
+function clSaveState(){ if(CL_HEADLESS)return; localStorage.setItem('cbe_cost_ledger_day', JSON.stringify(CL_STATE)); }
 function clLoadHistory(){
   let h; try{ h=JSON.parse(localStorage.getItem('cbe_cost_ledger_history')||'[]'); }catch(e){ return []; }
   if(!Array.isArray(h))return [];
@@ -2975,6 +3029,7 @@ let PB_MONTH=null;
 
 function openPilotBonus(){
   stopRadarBlipAudio();
+  try{ clRecalcAllDays(); }catch(e){ console.warn('recalc failed',e); }
   const salary=pbLoadSalary();
   const sEl=document.getElementById('pb-salaryField');
   if(sEl) sEl.value=salary!=null?salary:'';
@@ -2984,7 +3039,7 @@ function openPilotBonus(){
     PB_MONTH=PB_MONTH&&months.some(m=>m.key===PB_MONTH)?PB_MONTH:months[months.length-1].key;
     sel.value=PB_MONTH;
   } else {
-    PB_MONTH=new Date().toISOString().slice(0,7);
+    PB_MONTH=clLocalISO().slice(0,7);
     sel.value=PB_MONTH;
   }
   document.getElementById('pilotBonusModal').classList.add('active');
@@ -3034,7 +3089,8 @@ function pbCompute(){
   // Savings bonus = 10% of THIS pilot's own share for each day, already correctly weighted by
   // that day's own crew size above — a day flown solo counts in full, a day flown with others
   // is already divided by however many pilots were on it that specific day.
-  const savingsBonus=yourShare*0.10;
+  // 3 Oct 2026: a month with a net LOSS gives €0 bonus, never a negative one.
+  const savingsBonus=Math.max(0,yourShare*0.10);
   let floorBonus=0;
   if(qualifying&&monthlySalary!=null){
     // Capped against THIS pilot's own share — each pilot's device computes this independently
@@ -3068,12 +3124,12 @@ function pbRenderDayList(monthKey){
   wrap.innerHTML=hist.map(h=>{
     const share=(h.saved||0)/(h.crewSize||2);
     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #1d3a44;font-size:10.5px;">
-      <div style="flex:2;color:#dfe8ee;">${h.date}</div>
+      <div style="flex:2;color:#dfe8ee;">${h.date}${(h.warnings&&h.warnings.length)?' <span style="color:#ffb84d;">⚠</span>':''}</div>
       <div style="flex:2;color:#16c79a;">€${clEur(h.saved||0)}</div>
       <div style="flex:1;color:#9fb8c8;">÷</div>
       <input type="number" min="1" value="${h.crewSize||2}" style="flex:1;width:44px;background:#0d1e28;border:1px solid #234;color:#fff;border-radius:4px;padding:3px 4px;" onchange="pbSetDayCrewSize('${h.date}',this.value)">
       <div style="flex:2;color:#ffd76b;">= €${clEur(share)} yours</div>
-    </div>`;
+    </div>${(h.warnings&&h.warnings.length)?'<div style="font-size:9.5px;color:#ffb84d;padding:0 4px 6px;line-height:1.4;">⚠ '+h.warnings.join('<br>⚠ ')+'</div>':''}`;
   }).join('');
 }
 function pbSetDayCrewSize(date,v){
@@ -3349,6 +3405,7 @@ function clRemoveUpload(kind,idx){
   if(removed&&removed.id){ delete PHOTO_CACHE[removed.id]; idbDeletePhoto(removed.id).catch(()=>{}); }
 }
 function clRenderUploads(){
+  if(CL_HEADLESS)return;
   ['brief','ofp','teclog'].forEach(k=>{
     const list=CL_STATE.uploads[k];
     document.getElementById('cl-cnt'+clCap(k)).textContent=list.length+' attached';
@@ -3389,6 +3446,7 @@ function clBadge(val,yesLabel,noLabel,unknownLabel){
   return `<span style="color:#16c79a;">${unknownLabel||'no game data yet'}</span>`;
 }
 function clRenderStops(){
+  if(CL_HEADLESS)return;
   if(!CL_STATE.stops.length){ document.getElementById('cl-stopsWrap').innerHTML='<div class="cl-empty">No ground stops loaded for this date yet. Tap "🔄 Sync this day\'s data" above.</div>'; return; }
   document.getElementById('cl-stopsWrap').innerHTML=CL_STATE.stops.map((s,i)=>`
     <div class="cl-card">
@@ -3415,6 +3473,7 @@ function clRenderStops(){
 function clUpdStop(i,key,val){ CL_STATE.stops[i][key]=Number(val); clSaveState(); clCompute(); }
 
 function clRenderLegs(){
+  if(CL_HEADLESS)return;
   if(!CL_STATE.legs.length){ document.getElementById('cl-legsWrap').innerHTML='<div class="cl-empty">No legs loaded for this date yet.</div>'; return; }
   document.getElementById('cl-legsWrap').innerHTML=CL_STATE.legs.map((l,i)=>`
     <div class="cl-card">
@@ -3515,7 +3574,7 @@ function clDebugExport(){
 }
 function clSyncFromGame(){
   let data; try{ data=loadData(); }catch(e){ return {ok:false,message:'🎮 Game data: could not read CBE game data.'}; }
-  const dEl=document.getElementById('cl-dateField'); if(dEl&&dEl.value) CL_STATE.date=dEl.value; // read the field directly — don't rely on onchange having fired yet
+  const dEl=document.getElementById('cl-dateField'); if(!CL_HEADLESS&&dEl&&dEl.value) CL_STATE.date=dEl.value; // read the field directly — don't rely on onchange having fired yet
   const dateStr=CL_STATE.date;
   const daySectors=(data.sectors||[]).filter(s=>clDateToISO(s.date)===dateStr && !s.manual)
     .sort((a,b)=>(a.legNum||0)-(b.legNum||0) || (a.timestamp||0)-(b.timestamp||0));
@@ -3526,10 +3585,11 @@ function clSyncFromGame(){
   }
 
   const oldLegs=CL_STATE.legs.slice();
-  const oldStopsByAirport={}; CL_STATE.stops.forEach(s=>{ oldStopsByAirport[s.airport]=s; });
 
+
+  const oldLegMatch=clSeqMatch(oldLegs,daySectors,(a,b)=>a.from===b.dep&&a.to===b.arr);
   const newLegs=daySectors.map((s,i)=>{
-    const prev=oldLegs[i]||{};
+    const prev=oldLegMatch[i]||{};
     const ch=Array.isArray(s.choices)?s.choices:[];
     const chPts=id=>{const c=ch.find(x=>x.task===id);return c?c.pts:undefined;};
     const chLabel=id=>{const c=ch.find(x=>x.task===id);return c?c.label:undefined;};
@@ -3566,8 +3626,9 @@ function clSyncFromGame(){
     };
   });
   const airports=[newLegs[0].from,...newLegs.map(l=>l.to)];
+  const oldStopMatch=clSeqMatch(CL_STATE.stops,airports.map(a=>({airport:a})),(a,b)=>a.airport===b.airport);
   const newStops=airports.map((ap,i)=>{
-    const prevS=oldStopsByAirport[ap]||{};
+    const prevS=oldStopMatch[i]||{};
     const phase= i===0?'preflight':(i===airports.length-1?'postflight':'turnaround');
     let baselineMin=80;
     if(phase==='turnaround'){
@@ -3634,13 +3695,140 @@ function clSyncAll(){
   banner.textContent=r1.message+'\n'+r2.message;
 }
 
+// ═══ FUEL TANKERING — one rule (3 Oct 2026, agreed with Cem) ═══
+// Replaces the July "credit at departure", the Aug "walk-back", the Sep cross-day formula and the
+// separate extra-burn row, which together counted the same fuel up to twice.
+//
+// The rule: compare yourself with a NORMAL pilot who stands in exactly your position but always
+// departs with the OFP fuel (topping up locally when short, never tankering).
+//  • At every stop: your uplift vs the normal pilot's uplift (both from the Teclog).
+//      you bought MORE  → that extra fuel gets a LABEL: "bought at <airport>, <€/L>"
+//      you bought LESS  → labelled fuel was used instead (oldest label first) and the saving is
+//                         litres × (this airport's €/L − the label's €/L)   — can be negative
+//  • In flight: the extra weight of labelled fuel burns extra fuel (OFP burn-off table). That
+//    fuel was paid for and is gone → booked as a cost at its label price, on that flight.
+//  • Labels left in the tanks at day end are carried to the next flown day of the same tail
+//    (one note per tail per date, so any day can be recalculated in any order).
+//  • Fuel you didn't decide on (taken over, or before the first played day) has no label → €0.
+//  • Being BELOW the normal pilot is never credited or charged (conservative).
+// Prices: the Brief's €/L for each airport. Quantities: Teclog lbs → litres via density.
+function clLbsToL(lbs,density){ return (lbs*0.453592)/((density&&density>0)?density:0.8); }
+function clStopPriceKnown(s){
+  return !!(s&&s.fuelPrice>0&&!(s.fuelPrice===1&&/not yet set/.test(s.note||'')));
+}
+function clFuelNoteFor(tail,beforeDate){
+  const fb=(DB.fuelBank&&tail)?DB.fuelBank[tail]:null;
+  if(!fb||fb.v!==2||!fb.byDate)return null;
+  const dates=Object.keys(fb.byDate).filter(d=>d<beforeDate).sort();
+  return dates.length?{date:dates[dates.length-1],...fb.byDate[dates[dates.length-1]]}:null;
+}
+function clTankeringDay(state,opts){
+  opts=opts||{};
+  const density=opts.density||0.8;
+  const out={cbe:0,events:[],warnings:[],checks:[],labelsOut:[],expected:null,has:false,ok:true};
+  const legs=state.legs||[], stops=state.stops||[];
+  if(!legs.length)return out;
+  const prev=clFuelNoteFor(state.tail,state.date);
+  let labels=(prev&&Array.isArray(prev.labels))?prev.labels.map(x=>({...x})):[];
+  const sumL=()=>labels.reduce((a,x)=>a+x.lbs,0);
+  const teclogOk=legs.every(l=>Number(l.offBlockFuel)>0&&Number(l.onBlockFuel)>0);
+  if(!teclogOk){
+    out.ok=false;
+    out.warnings.push('Teclog fuel readings missing — tankering can\'t be calculated for this day. Read the Teclog, then SYNC.');
+    out.labelsOut=labels;
+    return out;
+  }
+  out.has=true;
+  legs.forEach((l,i)=>{
+    const dep=stops[l.depStop]||{};
+    let onBoard;
+    if(i===0){
+      if(state.takeoverFuel!=null&&Number(state.takeoverFuel)>0) onBoard=Number(state.takeoverFuel);
+      else{
+        onBoard=(prev&&prev.realLanding>0)?prev.realLanding:Number(l.offBlockFuel);
+        out.warnings.push('Takeover fuel missing for the first flight — log it as "first flight of the day" so the game asks for it. Assumed '+Math.round(onBoard)+' lbs.');
+      }
+    } else onBoard=Number(legs[i-1].onBlockFuel);
+    const ofp=Number(l.ofpTotal)||0, off=Number(l.offBlockFuel);
+    // labelled fuel can never exceed what is physically on board
+    let S=sumL(); if(S>onBoard&&S>0){ const f=onBoard/S; labels.forEach(x=>x.lbs*=f); S=onBoard; }
+    const normalBefore=onBoard-S;
+    const normalDepart=Math.max(normalBefore,ofp);
+    const realBuy=Math.max(0,off-onBoard), normalBuy=Math.max(0,normalDepart-normalBefore);
+    const Safter=Math.max(0,off-normalDepart);
+    const delta=Safter-S;
+    const priceHere=clStopPriceKnown(dep)?Number(dep.fuelPrice):null;
+    if(delta>0.5){
+      if(priceHere==null) out.warnings.push('Fuel price missing for '+(dep.airport||'?')+' — extra fuel bought there can\'t be priced.');
+      const fxHere=(dep.fxRate!=null&&!isNaN(dep.fxRate))?Number(dep.fxRate):(opts.fx||0.92);
+      labels.push({airport:dep.airport||'?',price:priceHere,lbs:delta,date:state.date,
+        // for the OFP cross-check (info only — never counted): the leg's printed SAVINGS rate,
+        // where this fuel was flown to, how many lbs were tankered, and the burn it cost
+        ofpRate:(l.ofpSavingsPerKlbs!=null&&l.ofpSavingsPerKlbs!=='')?Number(l.ofpSavingsPerKlbs):null,fx:fxHere,
+        to:l.to,origLbs:delta,hops:0,burnCost:0,landedLbs:null});
+      out.events.push({type:'bought',airport:dep.airport,lbs:delta,eur:0,
+        text:`${dep.airport}: you bought ${Math.round(realBuy)} lbs, normal pilot ${Math.round(normalBuy)} → +${Math.round(delta)} lbs extra, labelled "${dep.airport}"`});
+    } else if(delta<-0.5){
+      let need=-delta;
+      while(need>0.5&&labels.length){
+        const lb=labels[0], take=Math.min(lb.lbs,need);
+        let eur=0, txt;
+        if(priceHere!=null&&lb.price!=null){
+          eur=clLbsToL(take,density)*(priceHere-lb.price);
+          txt=`${dep.airport}: ${Math.round(take)} lbs ${lb.airport} fuel used instead of buying here — ${Math.round(clLbsToL(take,density))} L × (€${priceHere.toFixed(2)} − €${lb.price.toFixed(2)})`;
+        } else txt=`${dep.airport}: ${Math.round(take)} lbs ${lb.airport} fuel used — price missing, not counted`;
+        out.cbe-=eur;
+        out.events.push({type:'used',airport:dep.airport,from:lb.airport,lbs:take,eur,text:txt});
+        if(lb.hops===1&&lb.to===dep.airport&&lb.ofpRate!=null&&lb.landedLbs>0&&priceHere!=null&&lb.price!=null){
+          const share=take/lb.landedLbs;
+          const ofpEur=lb.origLbs*share*lb.ofpRate/1000*lb.fx;
+          const gameEur=eur-lb.burnCost*share;
+          const diff=Math.abs(gameEur-ofpEur)/Math.max(Math.abs(ofpEur),1)*100;
+          out.checks.push({from:lb.airport,to:dep.airport,rate:lb.ofpRate,ofpEur,gameEur,diff,ok:diff<=15});
+        } else if(lb.hops>1){
+          out.checks.push({from:lb.airport,to:dep.airport,hops:lb.hops,none:true});
+        }
+        lb.lbs-=take; need-=take; if(lb.lbs<0.5)labels.shift();
+      }
+    }
+    // extra burn caused by carrying the labelled fuel on this leg
+    const Sdep=sumL();
+    if(Sdep>0.5){
+      const burn=Math.min(Sdep,clInterpBurn(l.burnTable,Sdep,l.burnAdjPer1000));
+      if(burn>0){
+        let cost=0; const f=(Sdep-burn)/Sdep;
+        labels.forEach(x=>{ const b=x.lbs*(1-f); const c=(x.price!=null)?clLbsToL(b,density)*x.price:0; cost+=c; x.burnCost=(x.burnCost||0)+c; x.lbs*=f; });
+        out.cbe+=cost;
+        out.events.push({type:'burn',lbs:burn,eur:-cost,text:`${l.from}→${l.to}: ${Math.round(burn)} lbs extra burn from carrying ${Math.round(Sdep)} lbs (OFP burn table) — fuel paid for and burned`});
+      }
+    }
+    labels=labels.filter(x=>x.lbs>=0.5);
+    labels.forEach(x=>{ x.hops=(x.hops||0)+1; if(x.hops===1) x.landedLbs=x.lbs; });
+  });
+  out.labelsOut=labels;
+  out.realLanding=Number(legs[legs.length-1].onBlockFuel)||null;
+  if(labels.length){
+    const lastArr=stops[legs[legs.length-1].arrStop]||{};
+    const from=[...new Set(labels.map(x=>x.airport))].join(', ');
+    const v=clStopPriceKnown(lastArr)?labels.reduce((a,x)=>a+(x.price!=null?clLbsToL(x.lbs,density)*(Number(lastArr.fuelPrice)-x.price):0),0):null;
+    out.expected={lbs:sumL(),eur:v,at:lastArr.airport,from};
+  }
+  if(!opts.noWrite&&state.tail&&state.date){
+    DB.fuelBank=DB.fuelBank||{};
+    let fb=DB.fuelBank[state.tail]; if(!fb||fb.v!==2) fb=DB.fuelBank[state.tail]={v:2,byDate:{}};
+    const rec={labels:labels.map(x=>({...x})),realLanding:out.realLanding};
+    if(JSON.stringify(fb.byDate[state.date])!==JSON.stringify(rec)){ fb.byDate[state.date]=rec; saveData(DB); }
+  }
+  return out;
+}
+
 function clApuBaselineMin(s,si){
   if(s.phase!=='turnaround') return 80;
   const inLeg=CL_STATE.legs.find(l=>l.arrStop===si), outLeg=CL_STATE.legs.find(l=>l.depStop===si);
   const groundMin=(inLeg&&outLeg)?clDiffMin(inLeg.onBlock,outLeg.offBlock):0;
   return groundMin>0?Math.min(groundMin,80):80;
 }
-function clCompute(){
+function clComputeCore(opts){
   // 22 Sep 2026: fields are locked (readonly) — this sets their displayed value from the
   // correct aircraft type each time, then reads it back the same way as before. Single source
   // of truth stays the AC_ASSUMPTIONS table above, not whatever a pilot could type in.
@@ -3705,45 +3893,6 @@ function clCompute(){
     if(s.gpuNeeded!=null) gpuHas=true;
   });
 
-  // Real-purchase walk-back: which leg did this surplus fuel ACTUALLY get bought on?
-  // Built 21 Aug 2026, per Cem's example — Leg 3 (EGLF-LPPT) flew with surplus fuel that was
-  // really tankered at EINN during Leg 2, not bought at EGLF. The old model always assumed
-  // "surplus = bought at this leg's own departure," which was wrong whenever a pilot tankers
-  // cheap fuel and carries it through a later leg without refuelling there.
-  // l.actualRefuelLtr is the REAL liters transcribed from the Teclog's "Actual" uplift column —
-  // 0 means the Teclog confirms nothing was bought on that leg (blank field); undefined/null
-  // means this fact was never transcribed for that leg (older days) — walk-back is skipped
-  // entirely for those, so no already-transcribed day changes behavior.
-  // Walk-back finds the most recent EARLIER (or same) leg with a real uplift, and that leg's
-  // own OFP (savings rate, burn table) and own departure airport (price/density/fx) are used
-  // for the pricing side of tankering/burn — while the SURPLUS AMOUNT itself is still measured
-  // against the CURRENT leg's own OFP plan (how much more than THIS leg needs are we carrying).
-  // 21 Sep 2026 fix: this previously checked `actualRefuelLtr`, a field name that was never
-  // actually written anywhere in the code — every real leg has `offBlockFuel`/`refuelQty`
-  // instead, so the walk-back silently never triggered and every leg was always priced using
-  // only its own data, even on days meant to test this exact mechanism. `refuelQty` (the real
-  // per-stop uplift — offBlockFuel minus whatever fuel carried in from the previous stop) is
-  // the correct, always-present signal for "did a real purchase happen here."
-  const legsHaveRealRefuelData=CL_STATE.legs.some(x=>x.offBlockFuel!=null);
-  function clTankerLegIdx(idx){
-    if(!legsHaveRealRefuelData) return idx; // older days: unchanged behavior
-    for(let j=idx;j>=0;j--){ if((CL_STATE.legs[j].refuelQty||0)>0) return j; }
-    return idx; // nothing found earlier in the day either — fall back to this leg's own data
-  }
-
-  // 21 Sep 2026: cross-day tail-anchor carryover — see cross-day-tankering-spec.md.
-  // CL_STATE itself resets on every date change by design, so it has no memory of a previous
-  // day's fuel. DB.fuelBank is separate, persistent, and keyed by aircraft tail — it survives
-  // date changes. Read once here; only the FIRST leg of the day ever needs it directly, since
-  // same-day legs 2+ already chain correctly via the walk-back above. Written back after the
-  // loop below, using whatever the day's last leg leaves in the tanks.
-  // 2 Oct 2026 fix: only a note written by an EARLIER day counts as carryover. Before, the
-  // day's own note (written by the previous calculation of this same day — e.g. the first half
-  // of SYNC) was read back as "yesterday's fuel", changing 20 Sep's With-CBE by ~€45 depending
-  // on how often it had been recalculated. A note from a LATER day is ignored too.
-  const fbRaw=(CL_STATE.tail&&DB.fuelBank&&DB.fuelBank[CL_STATE.tail])?DB.fuelBank[CL_STATE.tail]:null;
-  const fbNote=(fbRaw&&fbRaw.updatedDate&&CL_STATE.date&&fbRaw.updatedDate<CL_STATE.date)?fbRaw:null;
-
   CL_STATE.legs.forEach((l,idx)=>{
     const dep=CL_STATE.stops[l.depStop], arr=CL_STATE.stops[l.arrStop];
     const taxiOutMin=clDiffMin(l.offBlock,l.tO), taxiInMin=clDiffMin(l.landing,l.onBlock);
@@ -3806,145 +3955,11 @@ function clCompute(){
     if(l.waterChoice==='yes'){ waterNon+=costlierWater; waterCbe+=cheaperWater; waterHas=true; }
     else if(l.waterChoice==='no'){ waterNon+=costlierWater; waterCbe+=costlierWater; waterHas=true; }
     else if(l.waterChoice==='na'){ waterNon+=depWater; waterCbe+=0; waterHas=true; }
-
-    // Fuel tankering: FIX (18.07 dev chat) — the old version only priced fuel BOUGHT at this
-    // exact stop (via refuelQty), so extra weight simply CARRIED THROUGH a leg — never
-    // repurchased there — was invisible to this calc.
-    // Verified against the 15.07 flight: correctly reproduces the ~€128 real loss instead
-    // of the previous incorrect ~€758 apparent gain.
-    // 21 Aug 2026 — a mid-session unapproved change (direct dep/arr price-gap calc) was
-    // reverted; restored to the OFP's own printed SAVINGS=.../KLBS rate, confirmed as the
-    // model Cem wants: trust the OFP's printed rate as fact, scale it to the real surplus.
-    // 21 Aug 2026, continued — real-purchase walk-back added (see clTankerLegIdx above): the
-    // SURPLUS amount is still measured against THIS leg's own OFP plan (how much more than
-    // this leg needs are we carrying), but the RATE used to price it — the OFP savings rate,
-    // the exchange rate, the airport itself — now comes from whichever leg the Teclog actually
-    // shows a real uplift on, walking back through legs with no purchase (actualRefuelLtr=0)
-    // until it finds one that has it. Matches Cem's EGLF/LPPT example: Leg 3 flies surplus that
-    // was really tankered at EINN on Leg 2 — the loss is now priced with EINN's own OFP/price,
-    // not EGLF's. Falls back to this leg's own data unchanged for any day that hasn't
-    // transcribed actualRefuelLtr yet (see legsHaveRealRefuelData above).
-    const carryover=(idx>0)?CL_STATE.legs[idx-1].onBlockFuel:(CL_STATE.takeoverFuel!=null?CL_STATE.takeoverFuel:0);
-    l.refuelQty=Math.max(0,(l.offBlockFuel||0)-carryover); // kept for display only — no longer gates the money calc
-    const flownSurplusLbs=Math.max(0,(l.offBlockFuel||0)-l.ofpTotal);
-    const tIdx=clTankerLegIdx(idx);
-    const tLeg=CL_STATE.legs[tIdx];
-    const tDep=CL_STATE.stops[tLeg.depStop];
-    const legFx=(tDep&&tDep.fxRate!=null&&!isNaN(tDep.fxRate))?tDep.fxRate:fx;
-    const resultEur=(flownSurplusLbs/1000)*tLeg.ofpSavingsPerKlbs*legFx;
-
-    // 21 Sep 2026 — Section 3.3 unified formula (see cross-day-tankering-spec.md), running per
-    // leg via a chained baseline/real landing-fuel tracker. This is a SEPARATE, additive credit
-    // from the flownSurplusLbs pricing above — one prices fuel carried BEYOND a leg's own plan
-    // (a fresh local tankering decision), the other prices fuel that REDUCED or ELIMINATED a
-    // local purchase because of carryover from an earlier leg or day. They never overlap: the
-    // unified formula only ever looks at (requirement vs. prior-leg carryover), never at this
-    // leg's own offBlockFuel directly, so a leg that also buys extra beyond plan (its own fresh
-    // decision) still gets that portion priced correctly, separately, by the block above.
-    //
-    // Suppression: the block above has one real failure mode — when walk-back finds NOTHING
-    // earlier (same-day or cross-day) and this leg itself bought nothing (refuelQty===0), it
-    // falls back to pricing carried-through fuel using THIS leg's own rate, which may be
-    // completely unrelated (even negative/uneconomical) to where that fuel actually came from.
-    // Caught by self-testing this build against the real 20→21 Sep numbers before handing it
-    // over — confirmed via ESSL→EGWU, where the old fallback would have applied ESSL's own
-    // unfavourable rate to fuel that was never bought at ESSL at all. Suppressed only in that
-    // exact case; every other case (a genuine same-day walk-back match, or a genuine fresh local
-    // purchase) is untouched.
-    const prevBaseline=(idx>0)?(CL_STATE.legs[idx-1]._baselineLanding??null):(fbNote?fbNote.baselineLandingFuel:null);
-    // 21 Sep 2026 fix: for a day's first leg, this used to trust the PREVIOUS day's stored
-    // note (fbNote.realLandingFuel) as "what's on board." Real 21 Sep data exposed why that's
-    // wrong: yesterday's confirmed on-block at ESSL was 7240, but today's real "REMAINING FUEL
-    // ON TAKEOVER" reading (confirmed by today's Teclog off-block) was 7100 — a genuine 140 lbs
-    // overnight gap (exactly the APU-burn/density variance Cem flagged when this feature was
-    // first designed). CL_STATE.takeoverFuel — the pilot's own real, entered reading, taken
-    // BEFORE any of today's purchases — is always ground truth over a stored prediction from
-    // yesterday. Falls back to the stored note only when no real reading exists yet (e.g. the
-    // pre-flight recommendation screen, before today's Teclog exists).
-    const prevReal=(idx>0)?(CL_STATE.legs[idx-1].onBlockFuel??null):((CL_STATE.takeoverFuel!=null)?CL_STATE.takeoverFuel:(fbNote?fbNote.realLandingFuel:null));
-    const prevRate=(idx>0)?(CL_STATE.legs[idx-1]._noteRate??null):(fbNote?fbNote.rate:null);
-    const prevOrigin=(idx>0)?(CL_STATE.legs[idx-1]._noteOrigin??null):(fbNote?fbNote.originAirport:null);
-    const noFallbackMatch=(tIdx===idx&&(l.refuelQty||0)===0&&prevBaseline!=null);
-
-    if(noFallbackMatch){
-      // suppressed — see note above; the unified credit below covers this leg instead
-    }else{
-      tankCbe+=-resultEur;
-      if(resultEur!==0) tankBreakdown.local+=-resultEur;
-    }
-
-    let carrySavingLbs=0;
-    if(prevBaseline!=null&&prevReal!=null){
-      const baselinePurchase=Math.max(0,l.ofpTotal-prevBaseline);
-      const realPurchase=Math.max(0,l.ofpTotal-prevReal);
-      carrySavingLbs=Math.max(0,baselinePurchase-realPurchase);
-      if(carrySavingLbs>0){
-        const carryEur=-(carrySavingLbs/1000)*(prevRate||0)*fx;
-        tankCbe+=carryEur;
-        tankBreakdown.carried+=carryEur;
-        if(!tankBreakdown.carriedOrigin) tankBreakdown.carriedOrigin=prevOrigin||'';
-      }
-    }
-
-    // Running trackers for the next leg (same-day) or, at the end of the day, for DB.fuelBank.
-    // Origin resets to THIS leg whenever a genuine local purchase happened here (refuelQty>0)
-    // — that becomes the new most-recent real transaction driving price for whatever it leaves
-    // behind. Otherwise (nothing bought here) the existing origin simply carries forward.
-    const clBaselineDeparture=(prevBaseline!=null)?Math.max(prevBaseline,l.ofpTotal):l.ofpTotal;
-    const clDeltaWeight=(l.offBlockFuel||0)-clBaselineDeparture;
-    const clBaselineBurnAdj=clDeltaWeight>0?clInterpBurn(l.burnTable,clDeltaWeight,l.burnAdjPer1000):0;
-    const clRealBurn=(l.offBlockFuel||0)-(l.onBlockFuel||0);
-    l._baselineLanding=clBaselineDeparture-Math.max(0,clRealBurn-clBaselineBurnAdj);
-    if((l.refuelQty||0)>0){
-      l._noteRate=l.ofpSavingsPerKlbs;
-      l._noteOrigin=(CL_STATE.stops[l.depStop]||{}).airport||'';
-    }else{
-      l._noteRate=prevRate; l._noteOrigin=prevOrigin;
-    }
-
-    if(!noFallbackMatch){
-
-    // Extra burn from flying heavier than this leg's own OFP plan — reuses flownSurplusLbs
-    // computed above. This loss only exists BECAUSE of the tankering decision — the habitual
-    // baseline never carried the extra weight, so it never pays this cost either. Nets against
-    // the tankering gain on the CBE side, same as tankCbe just above (confirmed with Cem 21 Jul:
-    // Without CBE = €0, With CBE = the loss).
-    // Fixed 21 Aug 2026: uses the OFP's real Burn Off Adjustments table (interpolated between
-    // its actual printed rows, e.g. +1000LBS/62, +2000LBS/124, +3000LBS/189 — genuinely not
-    // linear) via clInterpBurn, instead of extrapolating a single rate. Falls back to the old
-    // single-rate linear model for legs transcribed before this fix. Priced using the real
-    // TANKER LEG's own table, density, and fuel price (see walk-back note above) — not always
-    // this leg's own, so carried-through surplus is costed at the airport it actually came from.
-    const extraBurnLbs=clInterpBurn(tLeg.burnTable,flownSurplusLbs,tLeg.burnAdjPer1000);
-    const extraBurnCost=clLbsToEur(extraBurnLbs,tDep?.fuelPrice||1,tDep?.density);
-    burnCbe+=extraBurnCost;
-    }
   });
 
-  // 21 Sep 2026: persist this tail's current carryover state for the next day (or next leg
-  // on this tail, whenever that is) — see cross-day-tankering-spec.md Section 3.1/3.2. Uses
-  // the LAST leg of today's rotation, since that's what's physically in the tanks going
-  // forward. If the tracked gap between real and baseline landing fuel has closed to ~zero,
-  // there's nothing left to carry — the note clears, ready for a fresh origin next time a
-  // leg creates new surplus. Known simplification (documented in the spec): this tracks one
-  // active origin/rate at a time rather than blending multiple differently-priced batches.
-  if(CL_STATE.tail&&CL_STATE.legs.length){
-    const lastIdx=CL_STATE.legs.length-1;
-    const lastLeg=CL_STATE.legs[lastIdx];
-    const lastBaseline=lastLeg._baselineLanding;
-    const lastReal=lastLeg.onBlockFuel;
-    const existingNote=DB.fuelBank&&DB.fuelBank[CL_STATE.tail];
-    const laterDayOwnsNote=existingNote&&existingNote.updatedDate&&CL_STATE.date&&existingNote.updatedDate>CL_STATE.date;
-    if(lastBaseline!=null&&lastReal!=null&&!laterDayOwnsNote){ // never let re-opening an older day overwrite a newer day's note
-      DB.fuelBank=DB.fuelBank||{};
-      if(Math.abs(lastReal-lastBaseline)<1){
-        delete DB.fuelBank[CL_STATE.tail];
-      }else{
-        DB.fuelBank[CL_STATE.tail]={rate:lastLeg._noteRate,originAirport:lastLeg._noteOrigin,realLandingFuel:lastReal,baselineLandingFuel:lastBaseline,updatedDate:CL_STATE.date||''};
-      }
-      saveData(DB);
-    }
-  }
+  // 3 Oct 2026: tankering is now ONE rule — see clTankeringDay above.
+  const TK=clTankeringDay(CL_STATE,{density:parseFloat((document.getElementById('cl-setDensity')||{}).value)||0.8,fx,noWrite:!!(opts&&opts.noWrite)});
+  tankCbe=TK.cbe;
 
   const rows=[
     ['APU ground time (40 vs 80min)',apuNon,apuCbe,apuHas],
@@ -3953,28 +3968,127 @@ function clCompute(){
     ['Toilet (cheaper airport)',toiletNon,toiletCbe,toiletHas],
     ['Water (cheaper airport)',waterNon,waterCbe,waterHas],
     ['GPU usage',gpuNon,gpuCbe,gpuHas],
-    ['Fuel tankering',tankNon,tankCbe,true],
-    ['Extra burn from tankering weight',burnNon,burnCbe,true],
+    ['Fuel tankering',tankNon,tankCbe,TK.has],
   ];
   const totalNon=rows.reduce((a,r)=>a+r[1],0), totalCbe=rows.reduce((a,r)=>a+r[2],0);
+  return {rows,totalNon,totalCbe,saved:totalNon-totalCbe,TK};
+}
+function clCompute(){
+  if(CL_HEADLESS){ CL_LAST=(()=>{const r=clComputeCore({});return {totalNon:r.totalNon,totalCbe:r.totalCbe,saved:r.saved};})(); return; }
+  const R=clComputeCore({});
+  const {rows,totalNon,totalCbe,TK}=R;
+  const note=(txt,col,bg)=>`<tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:${col};font-style:italic;${bg?'background:'+bg+';':''}">${txt}</td></tr>`;
   document.getElementById('cl-resBody').innerHTML=rows.map(r=>{
     const [label,non,cbe,has]=r;
     if(!has){
-      return `<tr><td>${label}</td><td class="non">€${clEur(non)}</td><td colspan="2" style="color:#16c79a;font-style:italic;">— no game data yet, sync above —</td></tr>`;
+      const why=(label==='Fuel tankering')?(TK.warnings[0]||'— no Teclog fuel readings yet —'):'— no game data yet, sync above —';
+      return `<tr><td>${label}</td><td class="non">€${clEur(non)}</td><td colspan="2" style="color:#16c79a;font-style:italic;">${why}</td></tr>`;
     }
-    const mainRow=`<tr><td>${label}</td><td class="non">€${clEur(non)}</td><td class="cbe">€${clEur(cbe)}</td><td class="saved">€${clEur(non-cbe)}</td></tr>`;
-    const tankeringNote=(label==='Fuel tankering'&&cbe<0)?`<tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:#8fe8c4;font-style:italic;background:#0f2e22;">💡 Negative here means your tankering decisions saved more than the fuel itself cost — a genuine gain, not an error.</td></tr>`:'';
-    // 23 Sep 2026: only shows on a day this actually applies — so a pilot who didn't make
-    // the original tankering call still sees where a saving on their own sheet came from,
-    // instead of one unexplained number. Silent on every normal day with nothing carried.
-    const tankBreakdownNote=(label==='Fuel tankering'&&tankBreakdown.carried<0)?`<tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:#7db8e8;font-style:italic;">↳ of which €${clEur(-tankBreakdown.carried)} carried from an earlier leg (${tankBreakdown.carriedOrigin||'—'})${tankBreakdown.local!==0?`, €${clEur(-tankBreakdown.local)} from today's own decision`:''}.</td></tr>`:'';
-    const burnNote=(label==='Extra burn from tankering weight'&&cbe>0)?`<tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:#ffd76a;font-style:italic;background:#3a2e0a;">⚠ This is the real cost of carrying the extra tankered weight — it only applies With CBE, since the habitual baseline never tankered and never carried it. Nets against the tankering gain above.</td></tr>`:'';
-    return mainRow+tankeringNote+tankBreakdownNote+burnNote;
+    let extra='';
+    if(label==='Fuel tankering'){
+      TK.events.forEach(e=>{ extra+=note('↳ '+e.text+(e.type!=='bought'?` = ${e.eur>=0?'+':'−'}€${clEur(Math.abs(e.eur))}`:''),e.type==='bought'?'#9fc8ff':(e.eur>=0?'#8fe8c4':'#ffd76a')); });
+      const seen=new Set();
+      (TK.checks||[]).forEach(c=>{
+        if(c.none){ const k='n'+c.from+c.to; if(seen.has(k))return; seen.add(k);
+          extra+=note(`No OFP cross-check for ${c.from} fuel used at ${c.to}: used ${c.hops} stops after purchase (the OFP rate only covers the next airport).`,'#7d93a8'); return; }
+        extra+=note(c.ok
+          ?`✓ Cross-check with OFP ${c.from} → ${c.to} (${c.rate} $/1000 lbs): ≈ €${clEur(c.ofpEur)} · game €${clEur(c.gameEur)} · difference ${c.diff.toFixed(0)}%`
+          :`⚠ OFP and game differ by ${c.diff.toFixed(0)}% (${c.from} → ${c.to}: OFP ≈ €${clEur(c.ofpEur)}, game €${clEur(c.gameEur)}). Check the Brief prices, the Teclog readings or the OFP savings figure.`,
+          c.ok?'#8fe8c4':'#ffd76a',c.ok?'#0f2e22':'#3a2e0a');
+      });
+      if(TK.expected) extra+=note(`⛽ Carried for later: ${Math.round(TK.expected.lbs)} lbs from ${TK.expected.from}`+(TK.expected.eur!=null?` — expected ≈ ${TK.expected.eur>=0?'+':'−'}€${clEur(Math.abs(TK.expected.eur))} if used at ${TK.expected.at}`:'')+'. Counted on the day it replaces a purchase.','#7db8e8','#0f1f2e');
+    }
+    return `<tr><td>${label}</td><td class="non">€${clEur(non)}</td><td class="cbe">€${clEur(cbe)}</td><td class="saved">€${clEur(non-cbe)}</td></tr>`+extra;
   }).join('')+`<tr class="total"><td>Total</td><td class="non">€${clEur(totalNon)}</td><td class="cbe">€${clEur(totalCbe)}</td><td class="saved">€${clEur(totalNon-totalCbe)}</td></tr>`;
   document.getElementById('cl-tapeNon').textContent='€'+clEur(totalNon);
   document.getElementById('cl-tapeCbe').textContent='€'+clEur(totalCbe);
   document.getElementById('cl-tapeSaved').textContent='€'+clEur(totalNon-totalCbe);
   CL_LAST={totalNon,totalCbe,saved:totalNon-totalCbe};
+  if(typeof clRenderWarnings==='function') clRenderWarnings(R);
+}
+
+// 3 Oct 2026: every flown day is recalculated from its stored data (game answers + Brief/OFP/
+// Teclog + takeover fuel), oldest first so fuel carried from one day to the next chains correctly.
+// The bonus uses these fresh numbers — before, it used totals frozen at the moment "Save" was
+// tapped, so formula fixes or a later Teclog read never reached the bonus, and unsaved days
+// silently counted €0. Crew size per day is still taken from the saved entry (default 2).
+// 3 Oct 2026: everything the pilot (and finance) needs to trust the numbers, shown right above
+// the cost table: what's missing, what's assumed rather than read from a document, and the exact
+// Teclog figures the calculation used — with simple plausibility checks — so a misread by
+// "Read with Claude" is visible instead of silently flowing into the money.
+function clTeclogChecks(state){
+  const issues=[];
+  (state.legs||[]).forEach((l,i)=>{
+    const tag=`${l.from}→${l.to}`;
+    const ob=+l.offBlockFuel, to=+l.tOFuel, ld=+l.landingFuel, on=+l.onBlockFuel;
+    if(!(ob>0&&on>0))return;
+    if(to&&to>ob) issues.push(`${tag}: T/O fuel ${to} higher than off-block ${ob}`);
+    if(ld&&to&&ld>to) issues.push(`${tag}: landing fuel ${ld} higher than T/O ${to}`);
+    if(on>ob) issues.push(`${tag}: on-block ${on} higher than off-block ${ob} — no fuel used?`);
+    if(ld&&on>ld) issues.push(`${tag}: on-block ${on} higher than landing ${ld}`);
+    if(+l.ofpTotal>0&&ob<+l.ofpTotal*0.5) issues.push(`${tag}: off-block ${ob} is far below the OFP total ${l.ofpTotal} — check`);
+    if(i>0){ const prev=state.legs[i-1]; if(+prev.onBlockFuel>0&&ob<+prev.onBlockFuel-300) issues.push(`${tag}: off-block ${ob} is ${Math.round(+prev.onBlockFuel-ob)} lbs below the previous on-block ${prev.onBlockFuel} — defuel or misread?`); }
+  });
+  return issues;
+}
+function clAssumptions(state){
+  const out=[];
+  (state.stops||[]).forEach(s=>{
+    const n=(s.note||'');
+    if(!clStopPriceKnown(s)) out.push(`${s.airport}: fuel price not read from a Brief`);
+    const fb=[];
+    ['toiletPrice','waterPrice','gpuPrice'].forEach(k=>{ if(+s[k]===100&&/fallback|not stated|no .*price/i.test(n)) fb.push(k.replace('Price','')); });
+    if(fb.length) out.push(`${s.airport}: ${fb.join('/')} not on the Brief → €100 assumed`);
+    if(/GBP|£|USD.*convert|convert/i.test(n)) out.push(`${s.airport}: some prices converted to € at an approximate rate (see stop note)`);
+  });
+  return out;
+}
+function clRenderWarnings(R){
+  const box=document.getElementById('cl-warnBox'); if(!box)return;
+  const st=CL_STATE, warn=[...((R&&R.TK&&R.TK.warnings)||[])];
+  const legs=st.legs||[];
+  if(legs.length&&legs.some(l=>!(+l.offBlockFuel>0&&+l.onBlockFuel>0))&&!warn.some(w=>/Teclog/.test(w)))
+    warn.push('Teclog fuel readings missing for some legs — taxi and tankering rows are incomplete.');
+  if(legs.length&&legs.some(l=>!l.tO||!l.landing||l.tO===l.offBlock))
+    warn.push('Real taxi times missing (planned OFP times in use) — read the Teclog for the taxi rows.');
+  const checks=clTeclogChecks(st), assum=clAssumptions(st);
+  const css='margin:0 0 8px;padding:8px 10px;border-radius:6px;font-size:10.5px;line-height:1.5;';
+  let html='';
+  if(warn.length) html+=`<div style="${css}background:#3a2e0a;border:1px solid #c9a04a;color:#ffd76a;"><b>⚠ Incomplete</b><br>${warn.join('<br>')}</div>`;
+  if(checks.length) html+=`<div style="${css}background:#3a1414;border:1px solid #c94a4a;color:#ffb0b0;"><b>⚠ Teclog figures look wrong — please compare with your Journey Log</b><br>${checks.join('<br>')}</div>`;
+  const used=legs.filter(l=>+l.offBlockFuel>0).map(l=>`${l.from}→${l.to}: ${l.offBlock||'?'}/${l.tO||'?'} → ${l.landing||'?'}/${l.onBlock||'?'} · fuel ${l.offBlockFuel}/${l.tOFuel||'?'} → ${l.landingFuel||'?'}/${l.onBlockFuel}`);
+  if(used.length) html+=`<details style="${css}background:#0f1f2e;border:1px solid #2a4a66;color:#9fc8ff;"><summary><b>Teclog figures used</b> (off-block/T-O → landing/on-block) — tap to compare</summary>${used.join('<br>')}${st.takeoverFuel?'<br>Takeover fuel: '+st.takeoverFuel+' lbs':''}</details>`;
+  const ac=getAcAssumptions((typeof flightLog!=='undefined'&&flightLog&&flightLog.acType)||'Challenger 350');
+  html+=`<details style="${css}background:#121a22;border:1px solid #2a3a4a;color:#9fb0c0;"><summary><b>Assumed values</b> (not read from a document)${assum.length?' — '+assum.length+' for this day':''}</summary>${assum.length?assum.join('<br>')+'<br>':''}APU burn ${ac.apu} lbs/h · idle 1 engine ${ac.idle} lbs/h${ac.verified?'':' (CL350 values — not verified for this type)'} · fuel density 0.80 kg/L · normal pilot: APU 80 min per stop (max. real ground time), takes exactly the OFP fuel.</details>`;
+  box.innerHTML=html;
+}
+
+function clRecalcDay(dateISO){
+  const keep=CL_STATE; CL_HEADLESS=true;
+  try{
+    CL_STATE={...clDefaultState(),date:dateISO,stops:[],legs:[],tail:'',flightNo:'',uploads:{brief:[],ofp:[],teclog:[],flightpack:[]}};
+    const r1=clSyncFromGame(), r2=clLoadTranscribed();
+    const R=clComputeCore({});
+    return {date:dateISO,tail:CL_STATE.tail,flightNo:CL_STATE.flightNo,legs:CL_STATE.legs.length,
+      withoutCbe:R.totalNon,withCbe:R.totalCbe,saved:R.saved,
+      warnings:[...(R.TK.warnings||[]),...(R.TK.checks||[]).filter(c=>!c.none&&!c.ok).map(c=>`Tankering: OFP and game differ by ${c.diff.toFixed(0)}% (${c.from} → ${c.to}) — check prices/Teclog`),...clTeclogChecks(CL_STATE),...(r2&&r2.ok?[]:['No Brief/OFP data for this day — prices are fallback values'])],
+      gameOk:!!(r1&&r1.ok)};
+  }finally{ CL_STATE=keep; CL_HEADLESS=false; }
+}
+function clRecalcAllDays(){
+  const dates=[...new Set((DB.sectors||[]).filter(s=>!s.manual).map(s=>clDateToISO(s.date)).filter(Boolean))].sort();
+  const hist=clLoadHistory();
+  const byDate=new Map(hist.map(h=>[clDateToISO(h.date)||h.date,h]));
+  dates.forEach(d=>{
+    const r=clRecalcDay(d);
+    if(!r.gameOk)return;
+    const old=byDate.get(d)||{};
+    byDate.set(d,{...old,date:d,tail:r.tail,flightNo:r.flightNo,legs:r.legs,withoutCbe:r.withoutCbe,withCbe:r.withCbe,saved:r.saved,
+      crewSize:old.crewSize||2,warnings:r.warnings,auto:true});
+  });
+  const merged=[...byDate.values()].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  clSaveHistory(merged);
+  return merged;
 }
 
 function clSaveDayBanner(msg,kind){
@@ -4792,7 +4906,7 @@ const TASKS=[
    c:[{l:'NO — off in time ✓',p:30,i:'✅',d:'+30!'},{l:'YES — over 40',p:0,i:'⏰',d:'Wasted.'},{l:'NO APU REQUIRED',p:50,i:'🚫',d:'+50!'}]},
   {id:'ho_send',wx:3774,phase:'🧹 POST FLIGHT',icon:'📚',when:'last',handoverOnly:true,q:'HANDOVER MSG sent to incoming crew & the company?',
    c:[{l:'YES ✓',p:0,i:'📬',d:'Done!'},{l:'NO',p:-20,i:'📭',d:'-20!'}]},
-  {id:'clean_ac',wx:3879,phase:'🧹 POST FLIGHT',icon:'🧹',when:'last',tail:true,q:'A/C CLEANED for incoming crew?',
+  {id:'clean_ac',wx:3879,phase:'🧹 POST FLIGHT',icon:'🧹',when:'last',handoverOnly:true,q:'A/C CLEANED for incoming crew?',
    c:[{l:'YES ✓',p:0,i:'✨',d:'Ready!'},{l:'NO',p:-20,i:'😤',d:'-20!'}]},
   {id:'transp_ah',wx:3985,phase:'🚗 TRANSPORT',icon:'🚕',when:'last',q:'Transport Airport → Hotel',
    c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'}]},
@@ -5419,7 +5533,7 @@ function pickDayDecision(finished){
 // popup available from every task screen (added 20 Jul 2026, so a pilot doesn't have to
 // remember which airport was cheaper from several tasks back).
 function buildRecommendationHTML(includeDisclaimer=true){
-  const todayISO=clDateToISO(flightLog&&flightLog.date)||new Date().toISOString().slice(0,10);
+  const todayISO=clDateToISO(flightLog&&flightLog.date)||clLocalISO();
   const day=getKnownDay(todayISO);
   const disclaimer=includeDisclaimer?'<div style="text-align:left;font-size:9px;color:#ff9d7d;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #24313c;">⚠ Performance optimising only — not a source of safety-of-flight information. Tankering, NOTAMs, and performance remain the pilot\'s own responsibility, from the official flight pack.</div>':'';
   // 21 Sep 2026: surface the tail's carried-over fuel note, if any, BEFORE the per-leg price
@@ -6219,7 +6333,7 @@ async function autoTranscribeFlightpack(){
   const statusEl=document.getElementById('autoTranscribeStatus');
   const list=CL_STATE.uploads.flightpack||[];
   if(list.length===0){ return; } // nothing attached yet — nothing to auto-read
-  const dateISO=clDateToISO(flightLog&&flightLog.date)||new Date().toISOString().slice(0,10);
+  const dateISO=clDateToISO(flightLog&&flightLog.date)||clLocalISO();
   if(statusEl){statusEl.textContent='🤖 Reading '+list.length+' file(s) automatically…';statusEl.style.color='#9fb8c8';}
   try{
     const files=[];
@@ -6263,7 +6377,7 @@ async function autoTranscribeTeclog(){
   const btn=document.getElementById('autoTranscribeTeclogBtn');
   const list=CL_STATE.uploads.teclog||[];
   if(list.length===0){ if(statusEl)statusEl.textContent='Attach at least one Teclog photo or PDF first.'; return; }
-  const dateISO=clDateToISO(CL_STATE.date)||new Date().toISOString().slice(0,10);
+  const dateISO=clDateToISO(CL_STATE.date)||clLocalISO();
   if(btn){btn.disabled=true;btn.textContent='🤖 Reading…';}
   if(statusEl)statusEl.textContent='Sending '+list.length+' file(s) to Claude…';
   try{
