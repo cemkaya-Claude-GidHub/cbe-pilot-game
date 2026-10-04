@@ -1040,6 +1040,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div class="cl-grid c2" style="margin-bottom:10px;">
         <div class="cl-fld"><label>Basic yearly salary € (from your contract)</label><input type="number" id="pb-salaryField" placeholder="e.g. 120000" onchange="pbSetSalary(this.value)"></div>
         <div class="cl-fld"><label>Month</label><input type="month" id="pb-monthField" onchange="pbSetMonth(this.value)"></div>
+        <div class="cl-fld"><label>Rank (sets the value of 1 free day)</label><select id="pb-rankField" onchange="tbSetRank(this.value)" style="background:#0d1e28;border:1px solid #234;color:#fff;border-radius:4px;padding:6px;"><option value="PIC">PIC — €600 per free day</option><option value="SIC">SIC — €300 per free day</option></select></div>
       </div>
 
       <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;">② YOUR BONUS FOR THIS MONTH</div>
@@ -1051,17 +1052,29 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:13px;">
         <tr style="border-bottom:1px solid #234;"><td style="padding:8px 4px;color:#9fb8c8;">Savings bonus (this month)</td><td style="padding:8px 4px;text-align:right;font-size:16px;font-weight:700;color:#4fe0a0;" id="pb-savingsBonus">€0.00</td></tr>
         <tr style="border-bottom:1px solid #234;"><td style="padding:8px 4px;color:#9fb8c8;">Floor bonus (this month, capped at max 10% of the monthly salary)</td><td style="padding:8px 4px;text-align:right;font-size:16px;font-weight:700;color:#e0a0f0;" id="pb-floorBonus">€0.00</td></tr>
-        <tr style="border-bottom:1px solid #234;"><td style="padding:8px 4px;color:#e0e0e0;font-weight:700;">Total bonus (this month)</td><td style="padding:8px 4px;text-align:right;font-weight:700;color:#16c79a;font-size:18px;" id="pb-total">€0.00</td></tr>
+        <tr style="border-bottom:1px solid #234;"><td style="padding:8px 4px;color:#e0e0e0;font-weight:700;">Total bonus (this month)<div style="font-size:9.5px;color:#7d93a8;font-weight:400;">Estimate — payroll confirms</div></td><td style="padding:8px 4px;text-align:right;font-weight:700;color:#16c79a;font-size:18px;" id="pb-total">€0.00</td></tr>
         <tr><td style="padding:8px 4px;color:#7d93a8;">Company keeps (from your share)</td><td style="padding:8px 4px;text-align:right;color:#7d93a8;font-size:14px;" id="pb-companyKeeps">€0.00 (—%)</td></tr>
       </table>
 
-      <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;margin-top:14px;">③ CREW SIZE PER FLYING DAY <span style="color:#6f8798;font-weight:400;">(tap the number to change it — 2 for CAPT+FO, more if augmented)</span></div>
+      <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;margin-top:14px;">③ 🕐 TIME BANK — MONEY OR FREE DAYS</div>
+      <div id="tb-convert" style="background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:8px;padding:10px;"></div>
+      <div id="tb-bank" style="background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:8px;padding:10px;margin-top:8px;"></div>
+      <details style="margin-top:8px;">
+        <summary style="cursor:pointer;font-size:10px;color:#9fb8c8;font-weight:700;">ⓘ HOW THE TIME BANK WORKS — tap to read</summary>
+        <div style="font-size:8.5px;color:#6f8798;line-height:1.6;padding:7px 10px;margin-top:6px;background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:6px;">
+          After a month has ended, you choose how much of that month's bonus you take as <b style="color:#16c79a;">money</b> and how much as <b style="color:#ffd76b;">free days</b>. It starts at 0 days — everything is money unless you choose otherwise. 1 free day costs <b>€600 (PIC)</b> or <b>€300 (SIC)</b> — 1.5× the company's own extra duty day rate. Only whole days; the rest is always paid as money. The day value is fixed the moment you convert and never changes afterwards.<br/><br/>
+          The bank holds max <b>17 days</b>. Days can build up over several months, so a long block (e.g. a vacation) is possible. Days expire after <b>12 months</b> — unused days are paid out as money. Free days can only be taken at the <b>start or end</b> of the 17-day rotation, any number of days. Requests must be in by the <b>15th</b> of the month before the rotation.<br/><br/>
+          <b style="color:#ffd700;">Elite reward:</b> 3 months in a row in Elite Tier = <b>1 extra free day</b>, not paid from your bonus. If the bank is full, that day is paid as money instead.
+        </div>
+      </details>
+
+      <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;margin-top:14px;">④ CREW SIZE PER FLYING DAY <span style="color:#6f8798;font-weight:400;">(tap the number to change it — 2 for CAPT+FO, more if augmented)</span></div>
       <div id="pb-dayList" style="margin-bottom:10px;"></div>
 
       <details style="margin-top:14px;">
         <summary style="cursor:pointer;font-size:10px;color:#9fb8c8;font-weight:700;">ⓘ HOW THIS BONUS WORKS — tap to read</summary>
         <div style="font-size:8.5px;color:#6f8798;line-height:1.6;padding:7px 10px;margin-top:6px;background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:6px;">
-          A month <b style="color:#ffd76b;">qualifies</b> the moment you either beat last month by +1% <i>or</i> hold Elite Tier that month — same "met" flag the CBE Index table already uses, nothing new to track. In a qualifying month you get two things: <b style="color:#16c79a;">10% of the real euros you saved</b> (from the Cost Ledger, uncapped — the more you genuinely save, the more you earn, always), plus a <b style="color:#e0a0f0;">floor bonus</b> — up to 10% of that month's salary — that rewards the parts of CBE that don't show up in fuel numbers at all. The floor never pushes the total past what was actually saved: in a quiet month it shrinks to fit, so the company can never pay out more than it saved. In a non-qualifying month, only the 10%-of-savings piece applies — no floor.<br/><br/><b style="color:#9fb8c8;">Flying with other pilots?</b> A saving on a shared flight was made by the whole crew together, not one person alone — so <b style="color:#ffd76b;">crew size</b> (② above) divides the 10%-of-savings piece evenly between everyone flying that leg (2 pilots → 5% each, 3 → 3.3% each, and so on), so the company's total payout for that saving always stays at 10%, never more, no matter how many pilots were on board. The floor bonus is untouched by this — it's tied to your own salary and your own performance, not shared.
+          A month <b style="color:#ffd76b;">qualifies</b> the moment you either beat last month by +1% <i>or</i> hold Elite Tier that month — same "met" flag the CBE Index table already uses, nothing new to track. In a qualifying month you get two things: <b style="color:#16c79a;">10% of the real euros you saved</b> (from the Cost Ledger, uncapped — the more you genuinely save, the more you earn, always), plus a <b style="color:#e0a0f0;">floor bonus</b> — up to 10% of that month's salary — that rewards the parts of CBE that don't show up in fuel numbers at all. The floor never pushes the total past what was actually saved: in a quiet month it shrinks to fit, so the company can never pay out more than it saved. In a non-qualifying month, only the 10%-of-savings piece applies — no floor.<br/><br/><b style="color:#9fb8c8;">Flying with other pilots?</b> A saving on a shared flight was made by the whole crew together, not one person alone — so <b style="color:#ffd76b;">crew size</b> (④ below) divides the 10%-of-savings piece evenly between everyone flying that leg (2 pilots → 5% each, 3 → 3.3% each, and so on), so the company's total payout for that saving always stays at 10%, never more, no matter how many pilots were on board. The floor bonus is untouched by this — it's tied to your own salary and your own performance, not shared.
         </div>
       </details>
       <div class="cl-flag" style="margin-top:10px;">Real savings are summed from your saved Cost Ledger days (Statistic · Money Saving) that fall within the selected month. Save each flying day there first, or this will show €0.</div>
@@ -1995,6 +2008,8 @@ async function clBuildBackupBundle(){
     costLedgerHistory: clLoadHistory(),
     costLedgerDay: (CL_STATE|| clLoadState()),
     pilotSalary: pbLoadSalary(),
+    pilotRank: tbLoadRank(),
+    timeBank: tbLoad(),
     photos, // all Brief/OFP/Teclog photo data, from IndexedDB — see clApplyRestoredBackup
     // 3 Oct 2026 (v4): everything else the game keeps — before this, a backup silently left
     // out all transcribed flight data (Brief prices, OFP figures, Teclog readings), the fuel
@@ -2078,6 +2093,8 @@ async function clApplyRestoredBackup(d){
     CL_STATE=d.costLedgerDay;
   }
   if(d.pilotSalary){ pbSaveSalary(d.pilotSalary); }
+  if(d.pilotRank){ try{ localStorage.setItem('cbe_pilot_rank', d.pilotRank); }catch(e){} }
+  if(d.timeBank&&Array.isArray(d.timeBank.conv)&&Array.isArray(d.timeBank.take)){ tbSave(d.timeBank); }
 
   // v3 backups also carry the actual photo bytes (moved out of localStorage into IndexedDB
   // in this version). Write each one back into IndexedDB and warm the in-memory cache so
@@ -3032,6 +3049,7 @@ function openPilotBonus(){
   const salary=pbLoadSalary();
   const sEl=document.getElementById('pb-salaryField');
   if(sEl) sEl.value=salary!=null?salary:'';
+  const rEl=document.getElementById('pb-rankField'); if(rEl) rEl.value=tbLoadRank();
   const months=computeEliteTimeline(groupByMonth(DB.sectors));
   const sel=document.getElementById('pb-monthField');
   if(months.length){
@@ -3044,7 +3062,170 @@ function openPilotBonus(){
   document.getElementById('pilotBonusModal').classList.add('active');
   pbCompute();
 }
-function closePilotBonus(){ document.getElementById('pilotBonusModal').classList.remove('active'); scheduleRadarBlipAudio(); }
+// ═══ TIME BANK (4 Oct 2026) ════════════════════════════════════
+// Agreed rules: after a month has ended the pilot chooses how many WHOLE free days to take
+// from that month's bonus (starts at 0 = all money). 1 day = €600 PIC / €300 SIC (1.5× the
+// company's extra duty day rate), fixed at the moment of conversion. Bank cap 17 days, days
+// expire 12 months after conversion and are paid out as money. Days only at the start or end
+// of a rotation; requests by the 15th of the month before. 3 months in a row in Elite = 1 extra
+// day (not paid from the bonus; paid as money if the bank is full).
+const TB_RATE={PIC:600,SIC:300}, TB_CAP=17;
+let PB_LAST_TOTAL=0, TB_PICK=0;
+function tbLoadRank(){ try{ return localStorage.getItem('cbe_pilot_rank')==='SIC'?'SIC':'PIC'; }catch(e){ return 'PIC'; } }
+function tbSetRank(v){ try{ localStorage.setItem('cbe_pilot_rank', v==='SIC'?'SIC':'PIC'); }catch(e){} TB_PICK=0; pbCompute(); }
+function tbLoad(){ try{ const t=JSON.parse(localStorage.getItem('cbe_time_bank')||'null'); if(t&&Array.isArray(t.conv)&&Array.isArray(t.take)) return t; }catch(e){} return {conv:[],take:[]}; }
+function tbSave(t){ try{ localStorage.setItem('cbe_time_bank', JSON.stringify(t)); }catch(e){} }
+function tbAddMonths(iso,n){ const y=+iso.slice(0,4), m=+iso.slice(5,7)-1+n; const d=new Date(Date.UTC(y,m,1)); return d.toISOString().slice(0,7)+iso.slice(7); }
+function tbNextMonthStart(mk){ return tbAddMonths(mk+'-01',1); }
+function tbFmtDate(iso){ const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return (+iso.slice(8,10))+' '+M[+iso.slice(5,7)-1]+' '+iso.slice(0,4); }
+function tbFmtMonth(mk){ const M=['January','February','March','April','May','June','July','August','September','October','November','December']; return M[+mk.slice(5,7)-1]+' '+mk.slice(0,4); }
+function tbEur0(n){ return Math.round(n).toLocaleString('de-DE'); }
+
+// Elite reward days: every 3rd month of an unbroken run of calendar months in Elite.
+function tbEliteDeposits(){
+  let months=[]; try{ months=computeEliteTimeline(groupByMonth(DB.sectors)); }catch(e){}
+  const out=[]; let run=0, prevKey=null;
+  months.forEach(m=>{
+    const consecutive=prevKey&&tbAddMonths(prevKey+'-01',1).slice(0,7)===m.key;
+    run=m.isElite?((consecutive&&run>0)?run+1:1):0;
+    prevKey=m.key;
+    if(run>0&&run%3===0) out.push({kind:'elite',at:tbNextMonthStart(m.key),days:1,rate:TB_RATE[tbLoadRank()],label:'Elite reward ('+tbFmtMonth(m.key)+')'});
+  });
+  return out;
+}
+
+// Replays every deposit / request / expiry in date order. Oldest days are always used first.
+function tbSimulate(today){
+  today=today||clLocalISO();
+  const t=tbLoad();
+  const ev=[];
+  t.conv.forEach(c=>ev.push({type:'dep',at:c.at,e:{kind:'conv',days:c.days,rate:c.rate,label:'Converted from '+tbFmtMonth(c.month)}}));
+  tbEliteDeposits().forEach(d=>{ if(d.at<=today) ev.push({type:'dep',at:d.at,e:d}); });
+  t.take.forEach(r=>ev.push({type:'take',at:r.at,r}));
+  ev.sort((a,b)=>a.at<b.at?-1:a.at>b.at?1:(a.type==='dep'?-1:1));
+  const lots=[], paid=[];
+  const expireUntil=d=>{ lots.forEach(l=>{ if(l.left>0&&l.expiry<=d){ paid.push({days:l.left,eur:l.left*l.rate,why:'expired '+tbFmtDate(l.expiry)}); l.left=0; } }); };
+  const bal=()=>lots.reduce((s,l)=>s+l.left,0);
+  ev.forEach(x=>{
+    expireUntil(x.at);
+    if(x.type==='dep'){
+      const fit=Math.max(0,Math.min(x.e.days,TB_CAP-bal()));
+      if(fit>0) lots.push({...x.e,at:x.at,expiry:tbAddMonths(x.at,12),left:fit});
+      if(x.e.days>fit) paid.push({days:x.e.days-fit,eur:(x.e.days-fit)*x.e.rate,why:'bank full ('+x.e.label+')'});
+    } else {
+      let need=x.r.days;
+      lots.forEach(l=>{ const u=Math.min(l.left,need); l.left-=u; need-=u; });
+    }
+  });
+  expireUntil(today);
+  const live=lots.filter(l=>l.left>0);
+  return {balance:bal(), live, paid, eliteEarned:lots.filter(l=>l.kind==='elite').length+paid.filter(p=>/Elite/.test(p.why)).length};
+}
+function tbBalanceLabel(){ try{ return tbSimulate().balance+' / '+TB_CAP+' days'; }catch(e){ return '0 / '+TB_CAP+' days'; } }
+
+function tbRender(){
+  const cv=document.getElementById('tb-convert'), bk=document.getElementById('tb-bank');
+  if(!cv||!bk) return;
+  const rank=tbLoadRank(), rate=TB_RATE[rank];
+  const t=tbLoad(), sim=tbSimulate();
+  const mk=PB_MONTH||'';
+  const done=t.conv.find(c=>c.month===mk);
+  const curMonth=clLocalISO().slice(0,7);
+  const row=(k,v,c)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #1d3a44;font-size:13px;"><span style="color:#9fb8c8;">${k}</span><span style="font-weight:700;color:${c||'#fff'};font-size:15px;">${v}</span></div>`;
+  let h=`<div style="font-size:11px;color:#9fb8c8;font-weight:700;padding-bottom:4px;">① ${mk?tbFmtMonth(mk).toUpperCase():'THIS MONTH'} BONUS — MONEY OR DAYS</div>`;
+  if(done){
+    h+=row('Total bonus','€'+tbEur0(PB_LAST_TOTAL),'#16c79a');
+    h+=row('Value of 1 free day','€'+tbEur0(done.rate)+' ('+done.rank+')');
+    h+=row('Converted to days',done.days===0?'0 days — all payout':done.days+(done.days===1?' day':' days'),'#ffd76b');
+    const rest=PB_LAST_TOTAL-done.days*done.rate;
+    h+=row('Remaining bonus (paid as money)','€'+tbEur0(Math.max(0,rest)),'#16c79a');
+    if(rest<-0.5) h+=`<div style="font-size:10px;color:#ffb84d;padding:6px 2px;">⚠ This month's bonus has changed since you converted and no longer covers ${done.days} days.</div>`;
+    h+=`<div style="font-size:10px;color:#7d93a8;padding:8px 2px 0;">✓ Requested ${tbFmtDate(done.at)} — <span style="color:#f88;text-decoration:underline;cursor:pointer;" onclick="tbUndo('${mk}')">undo</span></div>`;
+  } else {
+    const open=!!mk&&mk<curMonth; // only a finished month can be converted
+    const room=Math.max(0,TB_CAP-sim.balance);
+    const max=open?Math.max(0,Math.min(Math.floor(PB_LAST_TOTAL/rate+1e-9),room)):0;
+    TB_PICK=Math.max(0,Math.min(TB_PICK,max));
+    const btn=(lbl,fn,dis)=>`<button onclick="${fn}" ${dis?'disabled':''} style="width:38px;height:34px;font-size:18px;font-weight:800;border-radius:6px;border:1px solid #335;background:${dis?'#1a2533':'#16324a'};color:${dis?'#556':'#fff'};">${lbl}</button>`;
+    h+=row('Total bonus','€'+tbEur0(PB_LAST_TOTAL),'#16c79a');
+    h+=row('Value of 1 free day','€'+tbEur0(rate)+' ('+rank+')');
+    h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #1d3a44;font-size:13px;"><span style="color:#9fb8c8;">Convert to days</span><span style="display:flex;align-items:center;gap:10px;">${btn('−','tbPick(-1)',TB_PICK<=0)}<b style="font-size:20px;color:#ffd76b;min-width:26px;text-align:center;">${TB_PICK}</b>${btn('+','tbPick(1)',TB_PICK>=max)}</span></div>`;
+    h+=row('Remaining bonus (paid as money)','€'+tbEur0(PB_LAST_TOTAL-TB_PICK*rate),'#16c79a');
+    if(!open) h+=`<div style="font-size:10px;color:#7d93a8;padding:6px 2px;">Available after month end — you choose once ${mk?tbFmtMonth(mk):'the month'} is finished.</div>`;
+    else if(max===0&&PB_LAST_TOTAL>=rate&&room===0) h+=`<div style="font-size:10px;color:#ffb84d;padding:6px 2px;">Time Bank is full (${TB_CAP} days) — this month is paid as money.</div>`;
+    else if(max===0) h+=`<div style="font-size:10px;color:#7d93a8;padding:6px 2px;">Bonus is below the value of 1 free day — paid as money.</div>`;
+    const usable=open&&PB_LAST_TOTAL>0.005;
+    h+=`<button onclick="tbConfirm()" ${usable?'':'disabled'} style="margin-top:10px;width:100%;padding:10px;font-weight:800;font-size:13px;border-radius:6px;border:1px solid ${usable?'#16c79a':'#335'};background:${usable?'#0c3a2a':'#1a2533'};color:${usable?'#16c79a':'#556'};">${tbDecisionLabel(TB_PICK,PB_LAST_TOTAL-TB_PICK*rate)}</button>`;
+  }
+  cv.innerHTML=h;
+
+  // ── bank balance + take days ──
+  let b=`<div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:11px;color:#9fb8c8;font-weight:700;">② USE MY SAVED DAYS — 🕐 TIME BANK</span><span style="font-size:22px;font-weight:800;color:#ffd76b;">${sim.balance} <span style="font-size:12px;color:#7d93a8;">/ ${TB_CAP} days</span></span></div>`;
+  if(sim.live.length){
+    const oldest=sim.live.reduce((a,l)=>l.expiry<a.expiry?l:a);
+    b+=`<div style="font-size:10.5px;color:#9fb8c8;padding:4px 0;">Oldest ${oldest.left} ${oldest.left===1?'day expires':'days expire'} ${tbFmtDate(oldest.expiry)} (then paid as €${tbEur0(oldest.left*oldest.rate)})</div>`;
+    b+=sim.live.map(l=>`<div style="font-size:10px;color:#7d93a8;padding:1px 0;">• ${l.left} × ${l.kind==='elite'?'⭐ ':''}${l.label} — €${tbEur0(l.rate)}/day</div>`).join('');
+  }
+  if(sim.paid.length) b+=`<div style="font-size:10px;color:#16c79a;padding:4px 0;">Paid out as money: €${tbEur0(sim.paid.reduce((s,p)=>s+p.eur,0))} (${sim.paid.map(p=>p.days+' d '+p.why).join(', ')})</div>`;
+  // request window: by the 15th → next month's rotation, after the 15th → the month after
+  const today=clLocalISO();
+  const first=tbAddMonths(today.slice(0,7)+'-01', (+today.slice(8,10))<=15?1:2).slice(0,7);
+  {
+    const empty=sim.balance<1;
+    const opts=[0,1,2,3,4,5].map(i=>{ const k=tbAddMonths(first+'-01',i).slice(0,7); return `<option value="${k}">${tbFmtMonth(k)}</option>`; }).join('');
+    const dOpts=empty?'<option value="0">0</option>':Array.from({length:sim.balance},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+    const sel='background:#0d1e28;border:1px solid #234;color:'+(empty?'#556':'#fff')+';border-radius:4px;padding:6px;';
+    const dis=empty?'disabled':'';
+    b+=`<div style="margin-top:10px;padding-top:8px;border-top:1px solid #1d3a44;font-size:11px;color:#9fb8c8;font-weight:700;">TAKE FREE DAYS FROM THE BANK</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:11px;color:#9fb8c8;">
+        <select id="tb-takeDays" style="${sel}" ${dis}>${dOpts}</select> days, rotation in
+        <select id="tb-takeMonth" style="${sel}" ${dis}>${opts}</select> at the
+        <select id="tb-takeWhere" style="${sel}" ${dis}><option value="start">start</option><option value="end">end</option><option value="split">start + end</option></select>
+      </div>
+      <button onclick="tbRequest()" ${dis} style="margin-top:8px;width:100%;padding:9px;font-weight:800;font-size:12px;border-radius:6px;border:1px solid ${empty?'#335':'#ffd76b'};background:${empty?'#1a2533':'#3a2e00'};color:${empty?'#556':'#ffd76b'};">REQUEST FREE DAYS FROM BANK</button>
+      <div style="font-size:9.5px;color:#7d93a8;padding-top:4px;">${empty?'Bank empty — convert bonus into days first. ':''}Requests close on the 15th — today the earliest rotation is ${tbFmtMonth(first)}.</div>`;
+  }
+  if(t.take.length){
+    b+=`<div style="margin-top:10px;padding-top:8px;border-top:1px solid #1d3a44;font-size:11px;color:#9fb8c8;font-weight:700;">REQUESTED</div>`;
+    b+=t.take.map((r,i)=>`<div style="font-size:10.5px;color:#dfe8ee;padding:3px 0;">${r.days} ${r.days===1?'day':'days'} · ${tbFmtMonth(r.rot)} rotation · ${r.where==='split'?'start + end':r.where} <span style="color:#7d93a8;">(requested ${tbFmtDate(r.at)})</span>${r.rot>today.slice(0,7)?` <span style="color:#f88;text-decoration:underline;cursor:pointer;" onclick="tbCancel(${i})">cancel</span>`:''}</div>`).join('');
+  }
+  bk.innerHTML=b;
+}
+function tbDecisionLabel(days,rest){
+  rest=Math.max(0,rest);
+  if(days<1) return 'REQUEST PAYOUT: €'+tbEur0(rest);
+  const d='REQUEST '+days+(days===1?' FREE DAY':' FREE DAYS');
+  return rest>=0.5?d+' + PAYOUT €'+tbEur0(rest):d;
+}
+function tbPick(d){ TB_PICK+=d; tbRender(); }
+function tbConfirm(){
+  const mk=PB_MONTH, rank=tbLoadRank(), rate=TB_RATE[rank];
+  if(!mk||!(PB_LAST_TOTAL>0.005)||mk>=clLocalISO().slice(0,7)) return;
+  const t=tbLoad(); if(t.conv.some(c=>c.month===mk)) return;
+  const n=TB_PICK;
+  if(!confirm(tbFmtMonth(mk)+' bonus €'+tbEur0(PB_LAST_TOTAL)+':\n'+tbDecisionLabel(n,PB_LAST_TOTAL-n*rate)+'?')) return;
+  t.conv.push({month:mk,days:n,rate,rank,at:clLocalISO()}); tbSave(t); TB_PICK=0; tbRender();
+}
+function tbUndo(mk){
+  const t=tbLoad(), c=t.conv.find(x=>x.month===mk); if(!c) return;
+  if(tbSimulate().balance<c.days){ alert('These days are already used in a request — cancel the request first.'); return; }
+  if(!confirm('Undo your '+tbFmtMonth(mk)+' decision ('+(c.days?c.days+' days':'all payout')+')?')) return;
+  t.conv=t.conv.filter(x=>x.month!==mk); tbSave(t); tbRender();
+}
+function tbRequest(){
+  const days=parseInt(document.getElementById('tb-takeDays').value,10);
+  const rot=document.getElementById('tb-takeMonth').value, where=document.getElementById('tb-takeWhere').value;
+  if(!(days>0)) return;
+  if(where==='split'&&days<2){ alert('Start + end needs at least 2 days.'); return; }
+  if(!confirm('Request '+days+(days===1?' free day':' free days')+' for the '+tbFmtMonth(rot)+' rotation ('+(where==='split'?'start + end':where)+')?')) return;
+  const t=tbLoad(); t.take.push({at:clLocalISO(),days,rot,where}); tbSave(t); tbRender();
+}
+function tbCancel(i){
+  const t=tbLoad(), r=t.take[i]; if(!r) return;
+  if(!confirm('Cancel the request for '+r.days+' days ('+tbFmtMonth(r.rot)+')? The days go back into your bank.')) return;
+  t.take.splice(i,1); tbSave(t); tbRender();
+}
+function closePilotBonus(){ document.getElementById('pilotBonusModal').classList.remove('active'); scheduleRadarBlipAudio(); try{ if(document.getElementById('dashboard').style.display!=='none') renderDashboard(); }catch(e){} }
 function pbSetSalary(v){ const n=parseFloat(v); if(!isNaN(n)&&n>0) pbSaveSalary(n); pbCompute(); }
 function pbSetMonth(v){ PB_MONTH=v; pbCompute(); }
 
@@ -3073,6 +3254,7 @@ function pbCompute(){
     document.getElementById('pb-total').textContent='€0.00';
     document.getElementById('pb-companyKeeps').textContent='€0.00 (—%)';
     pbRenderDayList(PB_MONTH||'');
+    PB_LAST_TOTAL=0; tbRender();
     return;
   }
   idxEl.textContent=m.cbeIndex.toFixed(2);
@@ -3106,12 +3288,14 @@ function pbCompute(){
   document.getElementById('pb-savingsBonus').textContent='€'+clEur(savingsBonus);
   document.getElementById('pb-floorBonus').textContent=(qualifying?'€'+clEur(floorBonus):'€0.00 (non-qualifying month)');
   document.getElementById('pb-total').textContent='€'+clEur(total);
+  PB_LAST_TOTAL=total;
   document.getElementById('pb-companyKeeps').textContent='€'+clEur(companyKeeps)+' ('+companyPct.toFixed(0)+'%)';
   pbRenderDayList(m.key);
 
   if(salary==null){
     document.getElementById('pb-floorBonus').textContent='Enter yearly salary above to compute';
   }
+  tbRender();
 }
 // Lets crew size be checked/adjusted right here while looking at the bonus, without needing
 // to reopen the Cost Ledger — but it edits the exact same stored history entry, so there's
@@ -4551,7 +4735,7 @@ function renderDashboard(){
       <button class="db-btn-sm" style="background:#0d1b30;border-color:#2a3a55;color:#fff;" onclick="openExportRangeModal('dark',true)" title="View report · includes CBE performance page. Print from inside the viewer for an automatic ink-friendly light copy.">🌙 View · CBE</button>
       <button class="db-btn-sm" style="background:#0d1b30;border-color:#2a3a55;color:#fff;" onclick="openExportRangeModal('dark',false)" title="View report · CV + logbook only. Print from inside the viewer for an automatic ink-friendly light copy.">🌙 View · Logbook</button>
       <button class="db-btn-sm" style="background:#0c3a44;border-color:#16c79a;color:#fff;" onclick="showStats()">📊 Statistics</button>
-      <button class="db-btn-sm" style="background:#0c3a44;border-color:#16c79a;color:#fff;" onclick="openFlightSearch()">🔍 Search</button> <button class="db-btn-sm" style="background:#3a2400;border-color:#ffb84d;color:#ffb84d;" onclick="openLevel2Review()">📘 Level 2 Review</button> <button class="db-btn-sm" style="background:#0c2e1f;border-color:#16c79a;color:#16c79a;" onclick="openCostLedger()">💰 Statistic Money Saving</button> <button class="db-btn-sm" style="background:#2a0d3a;border-color:#d0a0ff;color:#d0a0ff;" onclick="openPilotBonus()">🏆 Pilot Bonus</button>
+      <button class="db-btn-sm" style="background:#0c3a44;border-color:#16c79a;color:#fff;" onclick="openFlightSearch()">🔍 Search</button> <button class="db-btn-sm" style="background:#3a2400;border-color:#ffb84d;color:#ffb84d;" onclick="openLevel2Review()">📘 Level 2 Review</button> <button class="db-btn-sm" style="background:#0c2e1f;border-color:#16c79a;color:#16c79a;" onclick="openCostLedger()">💰 Statistic Money Saving</button> <button class="db-btn-sm" style="background:#2a0d3a;border-color:#d0a0ff;color:#d0a0ff;" onclick="openPilotBonus()">🏆 Pilot Bonus · 🕐 ${tbBalanceLabel()}</button>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       <button class="db-btn-sm" style="background:transparent;color:#7a8aa0;border-color:#ccd3de;" onclick="backupData(this)">💾 Backup</button>
