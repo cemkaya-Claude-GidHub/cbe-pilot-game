@@ -2010,6 +2010,7 @@ async function clBuildBackupBundle(){
     pilotSalary: pbLoadSalary(),
     pilotRank: tbLoadRank(),
     timeBank: tbLoad(),
+    dayUploads: clLoadDayUploads(),
     photos, // all Brief/OFP/Teclog photo data, from IndexedDB — see clApplyRestoredBackup
     // 3 Oct 2026 (v4): everything else the game keeps — before this, a backup silently left
     // out all transcribed flight data (Brief prices, OFP figures, Teclog readings), the fuel
@@ -2094,6 +2095,7 @@ async function clApplyRestoredBackup(d){
   }
   if(d.pilotSalary){ pbSaveSalary(d.pilotSalary); }
   if(d.pilotRank){ try{ localStorage.setItem('cbe_pilot_rank', d.pilotRank); }catch(e){} }
+  if(d.dayUploads&&typeof d.dayUploads==='object'){ try{ localStorage.setItem('cbe_day_uploads', JSON.stringify({...d.dayUploads,...clLoadDayUploads()})); }catch(e){} }
   if(d.timeBank&&Array.isArray(d.timeBank.conv)&&Array.isArray(d.timeBank.take)){ tbSave(d.timeBank); }
 
   // v3 backups also carry the actual photo bytes (moved out of localStorage into IndexedDB
@@ -2874,9 +2876,26 @@ function saveDynamicKnownDay(dateStr,day){
   try{ localStorage.setItem('cbe_dynamic_known_days',JSON.stringify(all)); }catch(e){}
 }
 function getKnownDay(dateStr){
-  if(CL_KNOWN_DAYS[dateStr])return CL_KNOWN_DAYS[dateStr];
-  const dyn=loadDynamicKnownDays();
-  return dyn[dateStr]||null;
+  const day=CL_KNOWN_DAYS[dateStr]||loadDynamicKnownDays()[dateStr]||null;
+  if(!day||!Array.isArray(day.legs)) return day;
+  return {...day,legs:day.legs.map(l=>clFixLegOrder(l).leg)};
+}
+// 6 Oct 2026: the Journey Log prints each leg in two rows, and the lower row is
+// "On Block | Landing" — the reverse of time order. The Teclog reader swapped them on 20 Sep
+// (on-block 5063 / landing 4990) but not on 21 Sep. Physics settles it: fuel can never go UP
+// between off-block and take-off, or between landing and on-block — so if it does, the two
+// figures were read into each other's place and are swapped back. Same for the times (only
+// when the gap is short, so a flight past midnight is never touched).
+function clFixLegOrder(l){
+  const out={...l}, fixed=[];
+  const sw=(a,b)=>{ const t=out[a]; out[a]=out[b]; out[b]=t; };
+  if(+out.tOFuel>0&&+out.offBlockFuel>0&&+out.tOFuel>+out.offBlockFuel){ sw('tOFuel','offBlockFuel'); fixed.push('off-block/T-O fuel'); }
+  if(+out.onBlockFuel>0&&+out.landingFuel>0&&+out.onBlockFuel>+out.landingFuel){ sw('onBlockFuel','landingFuel'); fixed.push('landing/on-block fuel'); }
+  const min=t=>{ const m=/^(\d{1,2}):(\d{2})$/.exec(t||''); return m?(+m[1])*60+(+m[2]):null; };
+  const early=(a,b)=>{ const x=min(out[a]),y=min(out[b]); return x!=null&&y!=null&&x>y&&(x-y)<180; };
+  if(early('offBlock','tO')){ sw('offBlock','tO'); fixed.push('off-block/T-O time'); }
+  if(early('landing','onBlock')){ sw('landing','onBlock'); fixed.push('landing/on-block time'); }
+  return {leg:out,fixed};
 }
 // Split duties often mean 2+ flight packs for one day (e.g. an early pack covering sectors
 // 1-2, then a later pack once sector 3 is actually filed). Each pack may only have PART of
@@ -2950,7 +2969,7 @@ function mergeIncomingDayData(existingDay,incomingDay){
   };
 }
 function clLoadTranscribed(){
-  const dEl=document.getElementById('cl-dateField'); if(!CL_HEADLESS&&dEl&&dEl.value) CL_STATE.date=dEl.value; // read the field directly — don't rely on onchange having fired yet
+  const dEl=document.getElementById('cl-dateField'); if(!CL_HEADLESS&&dEl&&dEl.value&&dEl.value!==CL_STATE.date) clSetDate(dEl.value); // read the field directly — don't rely on onchange having fired yet. 6 Oct 2026: via clSetDate, so the old day's attachments never ride along onto another date
   const dateStr=CL_STATE.date;
   const day=getKnownDay(dateStr);
   if(!day){ return {ok:false,message:'📋 Teclog/OFP: no transcribed data on file for '+dateStr+' yet — send me the photos in chat and I\'ll add it.'}; }
@@ -3007,7 +3026,18 @@ function clLoadState(){
   catch(e){ return clDefaultState(); }
 }
 let CL_HEADLESS=false; // 3 Oct 2026: true while days are recalculated silently in the background (no screen/storage writes)
-function clSaveState(){ if(CL_HEADLESS)return; localStorage.setItem('cbe_cost_ledger_day', JSON.stringify(CL_STATE)); }
+function clSaveState(){ if(CL_HEADLESS)return; localStorage.setItem('cbe_cost_ledger_day', JSON.stringify(CL_STATE)); clRememberDayUploads(); }
+// 6 Oct 2026: attachments are remembered PER flying day. Before, only the one open day kept its
+// list — switching date started empty and a saved day lost the link to its Brief/OFP/Teclog
+// (the photos themselves stay in IndexedDB; this only keeps which ones belong to which day).
+function clLoadDayUploads(){ try{ return JSON.parse(localStorage.getItem('cbe_day_uploads')||'{}')||{}; }catch(e){ return {}; } }
+function clRememberDayUploads(){
+  if(CL_HEADLESS||!CL_STATE||!CL_STATE.date||!CL_STATE.uploads) return;
+  const u=CL_STATE.uploads, n=['brief','ofp','teclog','flightpack'].reduce((a,k)=>a+((u[k]||[]).length),0);
+  const all=clLoadDayUploads();
+  if(n>0) all[CL_STATE.date]=u; else delete all[CL_STATE.date];
+  try{ localStorage.setItem('cbe_day_uploads', JSON.stringify(all)); }catch(e){}
+}
 function clLoadHistory(){
   let h; try{ h=JSON.parse(localStorage.getItem('cbe_cost_ledger_history')||'[]'); }catch(e){ return []; }
   if(!Array.isArray(h))return [];
@@ -3704,11 +3734,16 @@ function clSetDate(v){
     // If the new date happens to match one of the pre-transcribed known days, populate
     // from that; otherwise it's a blank day, same shape as clDefaultState().
     const day=(typeof getKnownDay==='function')?getKnownDay(newDate):null;
+    clRememberDayUploads(); // keep the day we're leaving
+    const saved=clLoadDayUploads()[newDate];
     const fresh={
       date:newDate, tail:day?day.tail:'', flightNo:day?day.flightNo:'', crewSize:CL_STATE.crewSize||2,
       stops:[], legs:[],
-      uploads:{brief:[],ofp:[],teclog:[],flightpack:[]}
+      uploads:{brief:[],ofp:[],teclog:[],flightpack:[],...(saved||{})}
     };
+    // old day's status lines ("Matched … for 2026-09-20") must not stay on screen for another date
+    const tS=CL_HEADLESS?null:document.getElementById('autoTranscribeTeclogStatus'); if(tS){ tS.textContent="Attach the Teclog (photo or PDF) — it's read automatically."; tS.style.color='#9fb8c8'; }
+    const fS=CL_HEADLESS?null:document.getElementById('autoTranscribeStatus'); if(fS) fS.textContent='';
     if(day){
       fresh.stops=day.stops.map((s,i)=>({...s,id:clUid(),
         apuUnder40:null,apuNotRequired:null,
@@ -3718,6 +3753,9 @@ function clSetDate(v){
         toiletChoice:null,waterChoice:null}));
     }
     CL_STATE=fresh;
+    // keep the date field in step with the day actually open — otherwise a later read of a
+    // stale field would switch the day back
+    if(!CL_HEADLESS){ const f=document.getElementById('cl-dateField'); if(f) f.value=newDate; try{ clRenderUploads(); }catch(e){} }
   }
   clSaveState();
 }
@@ -3758,7 +3796,7 @@ function clDebugExport(){
 }
 function clSyncFromGame(){
   let data; try{ data=loadData(); }catch(e){ return {ok:false,message:'🎮 Game data: could not read CBE game data.'}; }
-  const dEl=document.getElementById('cl-dateField'); if(!CL_HEADLESS&&dEl&&dEl.value) CL_STATE.date=dEl.value; // read the field directly — don't rely on onchange having fired yet
+  const dEl=document.getElementById('cl-dateField'); if(!CL_HEADLESS&&dEl&&dEl.value&&dEl.value!==CL_STATE.date) clSetDate(dEl.value); // read the field directly — don't rely on onchange having fired yet. 6 Oct 2026: via clSetDate, so the old day's attachments never ride along onto another date
   const dateStr=CL_STATE.date;
   const daySectors=(data.sectors||[]).filter(s=>clDateToISO(s.date)===dateStr && !s.manual)
     .sort((a,b)=>(a.legNum||0)-(b.legNum||0) || (a.timestamp||0)-(b.timestamp||0));
@@ -6591,9 +6629,14 @@ async function autoTranscribeTeclog(){
     }
     const result=await resp.json();
     if(!result||!Array.isArray(result.legs)){throw new Error('Unexpected response shape from server.');}
+    // 6 Oct 2026: refuse a Teclog from another day (date printed on the Journey Log vs the flying day)
+    if(/^\d{4}-\d{2}-\d{2}$/.test(result.flightDate||'')&&result.flightDate!==dateISO){
+      throw new Error('This Teclog is from '+tbFmtDate(result.flightDate)+', not '+tbFmtDate(dateISO)+'. Nothing was changed — remove it with ✕ and attach the Teclog for '+tbFmtDate(dateISO));
+    }
     const existingDay=getKnownDay(dateISO);
     if(!existingDay){throw new Error('No flight pack read in for '+dateISO+' yet — read that in first so there\'s a day to merge these actuals into.');}
-    let mergedCount=0;
+    let mergedCount=0; const swapNotes=[];
+    result.legs=result.legs.map(rl=>{ const r=clFixLegOrder(rl); if(r.fixed.length) swapNotes.push((rl.from||'?')+'→'+(rl.to||'?')+': '+r.fixed.join(', ')); return r.leg; });
     const mergedDay={...existingDay,legs:existingDay.legs.map(leg=>{
       const match=result.legs.find(rl=>rl.from===leg.from&&rl.to===leg.to);
       if(!match)return leg;
@@ -6606,7 +6649,7 @@ async function autoTranscribeTeclog(){
     })};
     saveDynamicKnownDay(dateISO,mergedDay);
     clLoadTranscribed(); // pulls the merged figures straight into the open Cost Ledger view
-    if(statusEl){statusEl.textContent='✅ Matched actual times/fuel into '+mergedCount+' of '+existingDay.legs.length+' leg(s) for '+dateISO+'.';statusEl.style.color='#7df59a';}
+    if(statusEl){statusEl.textContent='✅ Matched actual times/fuel into '+mergedCount+' of '+existingDay.legs.length+' leg(s) for '+dateISO+'.'+(swapNotes.length?' ↔ Corrected swapped figures (fuel can\'t increase while taxiing): '+swapNotes.join('; ')+'.':'');statusEl.style.color='#7df59a';}
   }catch(e){
     if(statusEl){statusEl.innerHTML='⚠ Could not read the Teclog: '+String(e.message).replace(/</g,'&lt;')+' — <span onclick="autoTranscribeTeclog()" style="text-decoration:underline;cursor:pointer;color:#9fc8ff;">try again</span>';statusEl.style.color='#ff9d7d';}
   }finally{
