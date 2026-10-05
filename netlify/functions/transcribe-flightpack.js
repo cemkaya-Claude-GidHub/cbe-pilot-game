@@ -10,6 +10,11 @@
 // off by ~7% from the actual rate on the day. Every stop's fuel table already prints both
 // $/USG and EUR/Ltr for the same fuel — this now transcribes both raw figures directly (no
 // calculation here); game.html derives the real per-stop rate from them itself.
+//
+// 6 Oct 2026: the 20 Sep Journey Log came back with On Block and Landing fuel swapped — the
+// lower row prints "On Block | Landing", the reverse of time order. The Teclog instruction now
+// spells out the two-row layout with a worked example. game.html also corrects a swap itself.
+// It also returns the printed "Date of flight", so game.html can refuse a Teclog from another day.
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-sonnet-5';
@@ -72,6 +77,7 @@ const TECLOG_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
+      flightDate: { type: 'string', description: 'The "Date of flight" printed on the Journey Log, as YYYY-MM-DD (e.g. "20 Sep 26" → "2026-09-20"). Empty string if not printed or not readable — never guess.' },
       legs: {
         type: 'array',
         items: {
@@ -87,7 +93,7 @@ const TECLOG_TOOL = {
         }
       }
     },
-    required: ['legs']
+    required: ['flightDate', 'legs']
   }
 };
 
@@ -106,7 +112,7 @@ exports.handler = async function (event) {
   const tool = isTeclog ? TECLOG_TOOL : FLIGHTPACK_TOOL;
 
   const instruction = isTeclog
-    ? `Attached is a Teclog / Journey Log for ${date}. Read the ACTUAL flown Off Block, T.O., Landing, On Block times and the actual fuel readings (Off Block, T.O., Landing, On Block, in lbs) for each leg. Derive refuelQty for each leg as the fuel-state jump from the previous leg's On Block fuel to this leg's Off Block fuel (0 for the day's first leg — that uplift isn't derivable this way). Call record_teclog_actuals with one entry per leg, matched by from/to airport codes.`
+    ? `Attached is a Teclog / Journey Log, expected to be for ${date}. First read the "Date of flight" printed on it into flightDate (YYYY-MM-DD, exactly what is printed — even if it differs from ${date}; empty string if not readable). Read the ACTUAL flown Off Block, T.O., Landing, On Block times and the actual fuel readings (Off Block, T.O., Landing, On Block, in lbs) for each leg. LAYOUT — read carefully: each leg uses TWO rows. In the "FUEL IN LBS" block the left column is headed "Off Block" (upper row) / "On Block" (lower row) and the right column "T/O" (upper row) / "Landing" (lower row). So the UPPER row reads Off Block fuel, then T/O fuel; the LOWER row reads On Block fuel FIRST (left), then Landing fuel (right) — this is NOT time order, do not reorder it. Example: upper "7800 | 7763", lower "4990 | 5063" means offBlockFuel 7800, tOFuel 7763, onBlockFuel 4990, landingFuel 5063. The times work the same way: the "Off Block / On Block" column gives offBlock (upper) and onBlock (lower), the "T/O / Landing" column gives tO (upper) and landing (lower). Check before answering: tOFuel must be ≤ offBlockFuel and onBlockFuel must be ≤ landingFuel (fuel only goes down while taxiing). Derive refuelQty for each leg as the fuel-state jump from the previous leg's On Block fuel to this leg's Off Block fuel (0 for the day's first leg — that uplift isn't derivable this way). Call record_teclog_actuals with one entry per leg, matched by from/to airport codes.`
     : `Attached is a flight pack (OFP/Brief) for ${date}. Transcribe every stop (preflight before leg 1, turnaround between legs, postflight after the last leg) and every leg into the record_flight_day tool. For each stop: fuelPrice in EUR/litre AND fuelPriceUsgUsd in $/USG — both are printed side by side on the same fuel line, read each one directly and exactly as printed, do not convert between them yourself (0 for either if genuinely not stated — never guess). toiletPrice/waterPrice/gpuPrice in EUR — convert GBP/USD at a sensible approximate rate and explain it in the note, or use 100 as the fallback only if truly not stated. For each leg: use the OFP's planned/computed figures (times are STD in UTC unless stated otherwise), the OFP TOTAL fuel figure as ofpTotal, the "SAVINGS=xxx(USD) PER KLBS" figure as ofpSavingsPerKlbs, the +1000LBS burn-off-adjustment row as burnAdjPer1000, and tankerAllowed/tankerNote from the OFP remarks (false + the quoted reason if remarks explicitly prohibit tankering, e.g. a restricted Union airport — true otherwise, even if uneconomical). Leave offBlockFuel/tOFuel/landingFuel/onBlockFuel/refuelQty at 0 on this pass — those come from the Teclog, not the OFP. Always explain sources/conversions/fallbacks in each stop's note field.`;
 
   const content = [{ type: 'text', text: instruction }];
