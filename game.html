@@ -787,6 +787,19 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
   </div>
 </div>
 
+<!-- ===== GENERAL IN-APP CONFIRMATION (6 Oct 2026) — the browser's own confirm()/alert() does
+     not reliably show in the iPad Home Screen app, so a tap silently did nothing ===== -->
+<div class="pf-backdrop" id="appConfirmModal" style="z-index:650;">
+  <div class="pf-modal" style="max-width:320px;">
+    <div class="pf-head"><h3 id="appConfirmTitle">CONFIRM</h3></div>
+    <div class="pf-body"><div id="appConfirmText" style="text-align:center;font-size:12.5px;color:#243044;line-height:1.5;padding:6px 2px 4px;white-space:pre-line;"></div></div>
+    <div class="pf-foot">
+      <button class="pf-btn cancel" id="appConfirmCancel" onclick="pfClose('appConfirmModal')">Cancel</button>
+      <button class="pf-btn cancel" id="appConfirmOk" style="background:#16794f;border:1px solid #16794f;color:#fff;flex:1;">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== EXPORT RANGE PICKER (for flight logbook pages only) ===== -->
 <div class="pf-backdrop" id="pfExportRangeModal">
   <div class="pf-modal" style="width:380px;">
@@ -897,6 +910,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
     <span style="display:flex;gap:5px;align-items:center;">
       <button id="music-btn" onclick="toggleMusic()" style="font-family:'Press Start 2P',monospace;font-size:8px;background:#1a3a6a;color:#9fd4ff;border:1px solid #335;padding:4px 8px;cursor:pointer;">🔊 MUSIC</button>
       <button id="speed-btn" onclick="cycleSpeed()" style="font-family:'Press Start 2P',monospace;font-size:8px;background:#2a1a4a;color:#c0a0ff;border:1px solid #553;padding:4px 8px;cursor:pointer;">⏩ x1.0</button>
+      <button id="game-close-btn" class="st-close" onclick="quitGame()" style="font-family:'Press Start 2P',monospace;font-size:8px;padding:4px 8px;background:transparent;">✕ CLOSE</button>
     </span>
   </div>
   <canvas id="gcanvas" width="900" height="440"></canvas>
@@ -2049,6 +2063,7 @@ async function clAutoBackupAfterSave(){
 async function backupData(btn){
   try{
     clDownloadBackupFile(await clBuildBackupBundle());
+    try{ localStorage.setItem('cbe_last_backup', new Date().toISOString()); }catch(e){}
     if(btn){const t=btn.textContent;btn.textContent='✓ SAVED!';setTimeout(()=>btn.textContent=t,2500);}
   }catch(e){ alert('❌ Backup failed: '+e.message); }
 }
@@ -3233,27 +3248,33 @@ function tbConfirm(){
   if(!mk||!(PB_LAST_TOTAL>0.005)||mk>=clLocalISO().slice(0,7)) return;
   const t=tbLoad(); if(t.conv.some(c=>c.month===mk)) return;
   const n=TB_PICK;
-  if(!confirm(tbFmtMonth(mk)+' bonus €'+tbEur0(PB_LAST_TOTAL)+':\n'+tbDecisionLabel(n,PB_LAST_TOTAL-n*rate)+'?')) return;
-  t.conv.push({month:mk,days:n,rate,rank,at:clLocalISO()}); tbSave(t); TB_PICK=0; tbRender();
+  const total=PB_LAST_TOTAL;
+  appConfirm('🕐 '+tbFmtMonth(mk).toUpperCase()+' BONUS','Bonus €'+tbEur0(total)+'\n'+tbDecisionLabel(n,total-n*rate),'Yes, request',()=>{
+    const t2=tbLoad(); if(t2.conv.some(c=>c.month===mk)) return;
+    t2.conv.push({month:mk,days:n,rate,rank,at:clLocalISO()}); tbSave(t2); TB_PICK=0; tbRender();
+  });
 }
 function tbUndo(mk){
   const t=tbLoad(), c=t.conv.find(x=>x.month===mk); if(!c) return;
-  if(tbSimulate().balance<c.days){ alert('These days are already used in a request — cancel the request first.'); return; }
-  if(!confirm('Undo your '+tbFmtMonth(mk)+' decision ('+(c.days?c.days+' days':'all payout')+')?')) return;
-  t.conv=t.conv.filter(x=>x.month!==mk); tbSave(t); tbRender();
+  if(tbSimulate().balance<c.days){ appConfirm('🕐 TIME BANK','These days are already used in a request — cancel the request first.'); return; }
+  appConfirm('🕐 UNDO','Undo your '+tbFmtMonth(mk)+' decision ('+(c.days?c.days+' days':'all payout')+')?','Yes, undo',()=>{
+    const t2=tbLoad(); t2.conv=t2.conv.filter(x=>x.month!==mk); tbSave(t2); tbRender();
+  });
 }
 function tbRequest(){
   const days=parseInt(document.getElementById('tb-takeDays').value,10);
   const rot=document.getElementById('tb-takeMonth').value, where=document.getElementById('tb-takeWhere').value;
   if(!(days>0)) return;
-  if(where==='split'&&days<2){ alert('Start + end needs at least 2 days.'); return; }
-  if(!confirm('Request '+days+(days===1?' free day':' free days')+' for the '+tbFmtMonth(rot)+' rotation ('+(where==='split'?'start + end':where)+')?')) return;
-  const t=tbLoad(); t.take.push({at:clLocalISO(),days,rot,where}); tbSave(t); tbRender();
+  if(where==='split'&&days<2){ appConfirm('🕐 TIME BANK','Start + end needs at least 2 days.'); return; }
+  appConfirm('🕐 REQUEST FREE DAYS','Request '+days+(days===1?' free day':' free days')+' for the '+tbFmtMonth(rot)+' rotation ('+(where==='split'?'start + end':where)+')?','Yes, request',()=>{
+    const t=tbLoad(); t.take.push({at:clLocalISO(),days,rot,where}); tbSave(t); tbRender();
+  });
 }
 function tbCancel(i){
   const t=tbLoad(), r=t.take[i]; if(!r) return;
-  if(!confirm('Cancel the request for '+r.days+' days ('+tbFmtMonth(r.rot)+')? The days go back into your bank.')) return;
-  t.take.splice(i,1); tbSave(t); tbRender();
+  appConfirm('🕐 CANCEL REQUEST','Cancel the request for '+r.days+' days ('+tbFmtMonth(r.rot)+')?\nThe days go back into your bank.','Yes, cancel it',()=>{
+    const t2=tbLoad(); t2.take.splice(i,1); tbSave(t2); tbRender();
+  });
 }
 function closePilotBonus(){ document.getElementById('pilotBonusModal').classList.remove('active'); scheduleRadarBlipAudio(); try{ if(document.getElementById('dashboard').style.display!=='none') renderDashboard(); }catch(e){} }
 function pbSetSalary(v){ const n=parseFloat(v); if(!isNaN(n)&&n>0) pbSaveSalary(n); pbCompute(); }
@@ -4348,8 +4369,17 @@ function clSaveDay(){
   hist.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
   clSaveHistory(hist);
   clRenderTrend();
-  clSaveDayBanner((wasUpdate?'🔄 Updated existing entry for ':'✅ Saved new entry for ')+dateKey+' — €'+clEur(CL_LAST.saved)+' saved with CBE.',wasUpdate?'update':'success');
-  clAutoBackupAfterSave();
+  clSaveDayBanner((wasUpdate?'🔄 Updated existing entry for ':'✅ Saved new entry for ')+dateKey+' — €'+clEur(CL_LAST.saved)+' saved with CBE.'+clBackupReminder(),wasUpdate?'update':'success');
+  // 6 Oct 2026: no automatic backup download after every save any more — on iPad it only
+  // opened a file page that saved nothing unless "Save to Files" was tapped. A reminder in the
+  // banner instead; the Backup button on the dashboard makes the real file.
+}
+const CL_BACKUP_REMIND_DAYS=5;
+function clBackupReminder(){
+  let last=null; try{ last=localStorage.getItem('cbe_last_backup'); }catch(e){}
+  if(!last) return '\n💾 No backup yet — tap Backup on the dashboard.';
+  const days=Math.floor((Date.now()-new Date(last).getTime())/86400000);
+  return days>=CL_BACKUP_REMIND_DAYS?'\n💾 Last backup: '+days+' days ago — tap Backup on the dashboard.':'';
 }
 
 function clRenderTrend(){
@@ -5985,6 +6015,18 @@ function goBackTask(){
 // fix it, especially after checking the filtered flight pack revealed the mistake. Fields
 // are prefilled with whatever was entered for this attempt (not blanked) so it's a
 // correction, not a restart from scratch.
+// 6 Oct 2026: a way out of a flight in progress (before: only closing Safari/the app).
+// Flights already finished are untouched; only this unfinished flight's answers are dropped.
+function quitGame(){
+  appConfirm('✕ LEAVE THIS FLIGHT?','Your answers for this flight are not saved.\nFlights you already finished stay saved.','Yes, leave',quitGameNow);
+}
+function quitGameNow(){
+  G.running=false; G.popOpen=false;
+  document.getElementById('popup').classList.remove('active'); document.body.classList.remove('pop-open');
+  ['quickref-overlay','level2Modal'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.remove('active','show'); });
+  try{ scoreStop(); }catch(e){}
+  showDashboard();
+}
 function returnToFlightLogEntry(){
   G.running=false;
   document.getElementById('popup').classList.remove('active');document.body.classList.remove('pop-open');G.popOpen=false;
@@ -8294,6 +8336,18 @@ function pfSaveSectorEdit(){
 // Shared in-app delete confirmation — used instead of the native browser confirm() so the
 // wording and buttons are unambiguous (added 20 Jul 2026: "Yes, Delete" in red vs a plain
 // browser OK/Cancel box that didn't read as clearly tied to the delete action).
+// appConfirm(title, message, okLabel, onOk) — okLabel null = info box with a single OK button
+function appConfirm(title,message,okLabel,onOk){
+  document.getElementById('appConfirmTitle').textContent=title||'CONFIRM';
+  document.getElementById('appConfirmText').textContent=message||'';
+  const cancel=document.getElementById('appConfirmCancel');
+  cancel.style.display=okLabel?'':'none';
+  const oldBtn=document.getElementById('appConfirmOk');
+  const btn=oldBtn.cloneNode(true); oldBtn.parentNode.replaceChild(btn,oldBtn);
+  btn.textContent=okLabel||'OK';
+  btn.addEventListener('click',()=>{ pfClose('appConfirmModal'); if(okLabel&&onOk) onOk(); });
+  pfOpen('appConfirmModal');
+}
 function askDeleteConfirm(message,onConfirm){
   document.getElementById('pfConfirmDeleteText').textContent=message||'Delete this flight? This cannot be undone.';
   const oldBtn=document.getElementById('pfConfirmDeleteBtn');
