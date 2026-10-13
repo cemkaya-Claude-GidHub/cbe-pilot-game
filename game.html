@@ -982,6 +982,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div class="cl-sec-title">01 · Morning — Brief &amp; OFP</div>
       <div id="cl-fpSummary" style="display:none;margin-bottom:10px;">
         <div id="cl-fpSummaryList"></div>
+        <div id="cl-fpRereadStatus" style="font-size:10px;color:#9fb8c8;margin-top:4px;"></div>
       </div>
       <div class="cl-up-row" id="cl-manualBriefOfp" style="grid-template-columns:1fr 1fr;">
         <label class="cl-up" id="cl-upBrief">
@@ -3665,7 +3666,10 @@ function clRenderUploads(){
             <div style="font-size:9px;color:#7f92a3;">Already attached — covers Brief + OFP</div>
           </div>
         </div>
-        <button type="button" onclick="clViewFpSummary(${i})" style="background:#223347;color:#9fc8ff;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:8px 12px;cursor:pointer;flex-shrink:0;">👁 VIEW</button>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          ${i===0?`<button type="button" onclick="clRereadFlightpack()" style="background:#16324a;color:#9fe6d6;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:8px 12px;cursor:pointer;">🔄 RE-READ</button>`:''}
+          <button type="button" onclick="clViewFpSummary(${i})" style="background:#223347;color:#9fc8ff;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:8px 12px;cursor:pointer;">👁 VIEW</button>
+        </div>
       </div>
     `).join('');
   }
@@ -6593,11 +6597,12 @@ function fpAutoTranscribeDebounced(){
   clearTimeout(fpAutoTranscribeTimer);
   fpAutoTranscribeTimer=setTimeout(()=>autoTranscribeFlightpack(),700);
 }
-async function autoTranscribeFlightpack(){
-  const statusEl=document.getElementById('autoTranscribeStatus');
+async function autoTranscribeFlightpack(opts){
+  opts=opts||{};
+  const statusEl=opts.statusEl||document.getElementById('autoTranscribeStatus');
   const list=CL_STATE.uploads.flightpack||[];
-  if(list.length===0){ return; } // nothing attached yet — nothing to auto-read
-  const dateISO=clDateToISO(flightLog&&flightLog.date)||clLocalISO();
+  if(list.length===0){ return false; } // nothing attached yet — nothing to auto-read
+  const dateISO=opts.date||clDateToISO(flightLog&&flightLog.date)||clLocalISO();
   if(statusEl){statusEl.textContent='🤖 Reading '+list.length+' file(s) automatically…';statusEl.style.color='#9fb8c8';}
   try{
     const files=[];
@@ -6627,9 +6632,19 @@ async function autoTranscribeFlightpack(){
       statusEl.textContent='✅ Read in — '+(merged.legs?merged.legs.length:0)+' leg(s) total for '+dateISO+mergeNote;
       statusEl.style.color='#7df59a';
     }
+    return true;
   }catch(e){
-    if(statusEl){statusEl.textContent='⚠ Could not auto-read: '+e.message+' — you can still CONTINUE and fix this later.';statusEl.style.color='#ff9d7d';}
+    if(statusEl){statusEl.textContent='⚠ Could not auto-read: '+e.message+(opts.statusEl?'':' — you can still CONTINUE and fix this later.');statusEl.style.color='#ff9d7d';}
+    return false;
   }
+}
+// 13 Oct 2026: statistic page — read the flight pack that's ALREADY attached to this day again
+// (e.g. after the reader learned something new, like the full burn-off table). No new upload
+// needed; Teclog readings already on file are never overwritten by a flight-pack read.
+async function clRereadFlightpack(){
+  const st=document.getElementById('cl-fpRereadStatus');
+  const ok=await autoTranscribeFlightpack({date:clDateToISO(CL_STATE.date)||CL_STATE.date,statusEl:st});
+  if(ok){ clLoadTranscribed(); if(st) st.textContent+=' Figures updated below — tap Save this flying day to keep them.'; }
 }
 // Teclog counterpart to autoTranscribeFlightpack — sends whatever's in CL_STATE.uploads.teclog
 // and asks the server for ACTUAL flown times/fuel per leg (docType:'teclog'), then MERGES
