@@ -3729,7 +3729,7 @@ function clRenderLegs(){
         <div class="cl-fld"><label>Refuel qty (lbs, Teclog)</label><input type="number" value="${l.refuelQty??0}" readonly onchange="clUpdLeg(${i},'refuelQty',this.value)"></div>
         <div class="cl-fld"><label>OFP Total (lbs)</label><input type="number" value="${l.ofpTotal}" readonly onchange="clUpdLeg(${i},'ofpTotal',this.value)"></div>
         <div class="cl-fld"><label>OFP Savings $/KLBS</label><input type="number" value="${l.ofpSavingsPerKlbs}" readonly onchange="clUpdLeg(${i},'ofpSavingsPerKlbs',this.value)"></div>
-        <div class="cl-fld"><label>Burn adj (lbs/1000lbs, OFP)</label><input type="number" value="${l.burnAdjPer1000??0}" readonly onchange="clUpdLeg(${i},'burnAdjPer1000',this.value)"></div>
+        <div class="cl-fld"><label>${(Array.isArray(l.burnTable)&&l.burnTable.length)?'Burn adj (OFP table, lbs at +'+l.burnTable.slice().sort((a,b)=>a.add-b.add).map(r=>r.add).join(' / +')+')':'Burn adj (lbs/1000lbs, OFP)'}</label><input type="text" value="${(Array.isArray(l.burnTable)&&l.burnTable.length)?l.burnTable.slice().sort((a,b)=>a.add-b.add).map(r=>r.burn).join(' / '):(l.burnAdjPer1000??0)}" readonly></div>
       </div>
       <div style="margin-top:8px;font-size:9px;color:#7f92a3;text-transform:uppercase;letter-spacing:.05em;">🎮 From the CBE game (tap "Pull from CBE game" above to fill these in)</div>
       <div class="cl-grid c2" style="margin-top:4px;font-size:11px;">
