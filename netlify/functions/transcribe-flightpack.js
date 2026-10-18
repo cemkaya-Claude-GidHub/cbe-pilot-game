@@ -18,6 +18,8 @@
 // 13 Oct 2026: the flight-pack read now also returns the whole +1000/+2000/+3000 burn-off table
 // (burnTable). Only the +1000 row was read before, so the game scaled it in a straight line —
 // 1980 lbs gave 188 lbs extra burn where the OFP table gives ~176.
+// 14 Oct 2026: times must come back as plain HH:MM — a pack read returned "1545UTC" / "1728Z".
+// 16 Oct 2026: toiletFirstFree / waterFirstFree for Briefs like "Toilet 1st service FREE then €90".
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-sonnet-5';
@@ -45,6 +47,8 @@ const FLIGHTPACK_TOOL = {
             toiletPrice: { type: 'number', description: 'EUR. Use 100 as the fallback only if truly not stated.' },
             waterPrice: { type: 'number', description: 'EUR. Use 100 as the fallback only if truly not stated.' },
             gpuPrice: { type: 'number', description: 'EUR. Use 100 as the fallback only if truly not stated.' },
+            toiletFirstFree: { type: 'boolean', description: 'true only if the Brief says the FIRST toilet/lav service at this airport is free (e.g. "Toilet 1st service FREE then €90"). toiletPrice stays the normal price (€90 in that example).' },
+            waterFirstFree: { type: 'boolean', description: 'true only if the Brief says the FIRST water service at this airport is free. waterPrice stays the normal price.' },
             note: { type: 'string', description: 'Where each figure came from, plus any currency conversion or fallback used.' }
           },
           required: ['airport', 'phase', 'label', 'baselineMin', 'fuelPrice', 'fuelPriceUsgUsd', 'toiletPrice', 'waterPrice', 'gpuPrice', 'note']
@@ -57,7 +61,7 @@ const FLIGHTPACK_TOOL = {
           properties: {
             from: { type: 'string' },
             to: { type: 'string' },
-            offBlock: { type: 'string' }, tO: { type: 'string' }, landing: { type: 'string' }, onBlock: { type: 'string' },
+            offBlock: { type: 'string', description: 'UTC as HH:MM, e.g. 15:45 — no "UTC"/"Z" suffix' }, tO: { type: 'string', description: 'UTC as HH:MM' }, landing: { type: 'string', description: 'UTC as HH:MM' }, onBlock: { type: 'string', description: 'UTC as HH:MM' },
             offBlockFuel: { type: 'number' }, tOFuel: { type: 'number' }, landingFuel: { type: 'number' }, onBlockFuel: { type: 'number' },
             refuelQty: { type: 'number' },
             ofpTotal: { type: 'number' },
@@ -93,7 +97,7 @@ const TECLOG_TOOL = {
           properties: {
             from: { type: 'string' },
             to: { type: 'string' },
-            offBlock: { type: 'string' }, tO: { type: 'string' }, landing: { type: 'string' }, onBlock: { type: 'string' },
+            offBlock: { type: 'string', description: 'UTC as HH:MM, e.g. 15:45 — no "UTC"/"Z" suffix' }, tO: { type: 'string', description: 'UTC as HH:MM' }, landing: { type: 'string', description: 'UTC as HH:MM' }, onBlock: { type: 'string', description: 'UTC as HH:MM' },
             offBlockFuel: { type: 'number' }, tOFuel: { type: 'number' }, landingFuel: { type: 'number' }, onBlockFuel: { type: 'number' },
             refuelQty: { type: 'number' }
           },
