@@ -554,6 +554,19 @@ table.cl-res td{padding:5px 6px;border-bottom:1px solid #182430;text-align:right
 table.cl-res td:first-child{text-align:left;color:#dfe8ef;}
 table.cl-res td.non{color:#ffb84d;}table.cl-res td.cbe{color:#16c79a;}table.cl-res td.saved{color:#fff;font-weight:700;}
 table.cl-res tr.total td{border-top:1.5px solid #345;border-bottom:none;font-weight:700;padding-top:7px;}
+/* 18 Oct 2026: "+1000 lbs HABIT (simulated)" column — info only, never part of the bonus */
+table.cl-res th.hab{color:#ff6b6b;font-style:italic;text-align:center;background:rgba(255,107,107,.06);border-left:1px dashed rgba(255,107,107,.45);border-right:1px dashed rgba(255,107,107,.45);line-height:1.3;}
+table.cl-res th.hab span{display:block;text-transform:none;font-weight:600;}
+table.cl-res td.hab{color:#ff6b6b;font-style:italic;background:rgba(255,107,107,.06);border-left:1px dashed rgba(255,107,107,.35);border-right:1px dashed rgba(255,107,107,.35);}
+.cl-habline{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:8px;padding:8px 10px;border:1px dashed rgba(255,107,107,.55);border-radius:7px;background:rgba(255,107,107,.07);font-size:12px;color:#ffd0d0;line-height:1.5;}
+.cl-habline b{color:#ff6b6b;}
+.cl-tap{background:none;border:0;color:#9fc8ff;font-size:11px;padding:6px 8px;cursor:pointer;font-family:inherit;}
+.cl-popbox{background:#0d1b30;border:2px solid #335;border-radius:12px;padding:12px;max-width:620px;width:100%;margin:auto;color:#dce6f0;}
+.cl-pophead{display:flex;justify-content:space-between;align-items:center;font-family:monospace;font-size:11.5px;letter-spacing:1px;margin-bottom:8px;}
+.cl-pophead button{background:#1a2a44;border:1px solid #335;color:#dce6f0;border-radius:6px;font-size:14px;width:34px;height:34px;cursor:pointer;}
+.cl-popbox table td{white-space:normal !important;}
+.cl-popbox table td:nth-child(3),.cl-popbox table td:nth-child(4),.cl-popbox table td:last-child{white-space:nowrap !important;}
+@media(max-width:520px){table.cl-res td:not(:first-child){white-space:nowrap;}.cl-tail{display:none;}.cl-habline{font-size:11px;padding:8px 8px;}table.cl-res td,table.cl-res th{padding:5px 3px;}table.cl-res td{font-size:9.5px;}.cl-popbox{padding:10px 8px;}.cl-popbox table td{font-size:9.5px;padding:5px 3px !important;}}
 .cl-btn{font-weight:700;letter-spacing:.03em;text-transform:uppercase;font-size:11px;background:#0c3a35;border:1px solid #16c79a;color:#16c79a;border-radius:6px;padding:9px 12px;cursor:pointer;width:100%;}
 .cl-btn:disabled{background:#152230;border-color:#2a3a4a;color:#5a6b7a;cursor:not-allowed;}
 .fp-upload-wrap.fp-calm{opacity:.5;filter:grayscale(.5);transition:opacity .2s ease,filter .2s ease;}
@@ -787,6 +800,11 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
   </div>
 </div>
 
+<!-- ===== 18 Oct 2026: "Details (tap)" pop-up for the tankering and +1000 lbs habit breakdowns ===== -->
+<div class="pf-backdrop" id="clPop" style="z-index:660;align-items:center;" onclick="if(event.target===this)pfClose('clPop')">
+  <div class="cl-popbox"><div class="cl-pophead"><span id="clPopTitle"></span><button onclick="pfClose('clPop')">✕</button></div><div id="clPopBody"></div></div>
+</div>
+
 <!-- ===== GENERAL IN-APP CONFIRMATION (6 Oct 2026) — the browser's own confirm()/alert() does
      not reliably show in the iPad Home Screen app, so a tap silently did nothing ===== -->
 <div class="pf-backdrop" id="appConfirmModal" style="z-index:650;">
@@ -1008,7 +1026,8 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       </div>
       <!-- 3 Oct 2026: no "Read Teclog with Claude" button anymore — the Teclog is read automatically
            as soon as a photo or PDF is attached (same as the flight pack). Status shows here. -->
-      <div id="autoTranscribeTeclogStatus" style="font-size:10px;color:#9fb8c8;margin:2px 0 10px;">Attach the Teclog (photo or PDF) — it's read automatically.</div>
+      <div id="autoTranscribeTeclogStatus" style="font-size:10px;color:#9fb8c8;margin:2px 0 4px;">Attach the Teclog (photo or PDF) — it's read automatically.</div>
+      <button type="button" onclick="autoTranscribeTeclog()" style="background:#16324a;color:#9fe6d6;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer;margin:0 0 10px;">🔄 RE-READ TECLOG</button>
 
       <div class="cl-sec-title">02 · Ground stops — APU / Toilet / Water / GPU</div>
       <div class="cl-flag" style="margin-bottom:8px;font-size:11px;">🔒 All figures below are locked to real data — pulled from the CBE game or transcribed from your Brief/OFP/Teclog. Nothing here can be typed in by hand.</div>
@@ -1023,9 +1042,10 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div class="cl-sec-title">04 · Today's cost analysis</div>
       <div id="cl-warnBox"></div>
       <table class="cl-res">
-        <thead><tr><th style="text-align:left;">Category</th><th>Without CBE</th><th>With CBE</th><th>Saved</th></tr></thead>
+        <thead><tr><th style="text-align:left;">Category</th><th class="hab">+1000 lbs HABIT<span>(simulated)</span></th><th>Without CBE</th><th>With CBE</th><th>Saved</th></tr></thead>
         <tbody id="cl-resBody"></tbody>
       </table>
+      <div id="cl-habLine"></div>
       <div class="cl-btn-row">
         <button class="cl-btn" onclick="clSaveDay()">💾 Save this flying day</button>
       </div>
@@ -2035,6 +2055,7 @@ async function clBuildBackupBundle(){
     level2: DB.level2||{byType:{}},
     regNames: DB.regNames||[],
     crewNames: DB.crewNames||[],
+    personalLog: DB.personalLog||[],
     _backupVersion: 4
   };
 }
@@ -2083,7 +2104,10 @@ async function clApplyRestoredBackup(d){
     profile:d.profile?{...d.profile,...(DB.profile&&DB.profile.cleanStart20260920_v2?{cleanStart20260920_v1:true,cleanStart20260920_v2:true}:{})}:(DB.profile||{}),
     level2:(d.level2&&d.level2.byType&&Object.keys(d.level2.byType).length)?d.level2:(DB.level2||{byType:{}}),
     regNames:uniq(DB.regNames,d.regNames), crewNames:uniq(DB.crewNames,d.crewNames),
-    fuelBank:{...(d.fuelBank||{}),...(DB.fuelBank||{})}};
+    fuelBank:{...(d.fuelBank||{}),...(DB.fuelBank||{})},
+    // 13 Oct 2026: the personal logbook entries (other pilot, function, remarks) are kept too
+    personalLog:(()=>{ const seen=new Set(); return [...(DB.personalLog||[]),...(d.personalLog||[])].filter(e=>{ const k=(e.timestamp||'')+'|'+e.date+'|'+e.dep+'|'+e.arr; if(seen.has(k))return false; seen.add(k); return true; }); })()};
+  crewBackfill(DB);
   await saveData(DB);
   if(d.knownDays&&typeof d.knownDays==='object'){
     const cur=loadDynamicKnownDays();
@@ -2245,6 +2269,30 @@ function pdfShortDate(s){
 let DB={sectors:[],profile:{},level2:{byType:{}},fuelBank:{}};
 let saveStatus={artifact:false,local:false,lastSave:null};
 function loadData(){return DB;}
+// 14 Oct 2026: a flight pack read returned leg 3's planned times as "1545UTC" / "1728Z".
+// Every time stored on a leg is normalised to HH:MM so the taxi maths and checks see it.
+function clNormTime(t){
+  if(t==null||t==='') return t;
+  const m=clToMin(t); if(m==null) return t;
+  return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+}
+function clNormLegTimes(l){ if(!l) return l; ['offBlock','tO','landing','onBlock'].forEach(k=>{ if(l[k]) l[k]=clNormTime(l[k]); }); return l; }
+// 13 Oct 2026: the logbook pages saved the other pilot's name only into personalLog, but the
+// logbook PDF, search and flight list read it from the flight (DB.sectors) — so every flight
+// showed "SELF". This copies each personalLog name onto its matching flight (same date + route,
+// closest in time). A name already on a flight (e.g. typed in via Edit) is never overwritten.
+function crewBackfill(d){
+  d=d||DB; let n=0;
+  const secs=(d.sectors||[]).filter(s=>!s.manual);
+  (d.personalLog||[]).filter(e=>e&&e.crew).forEach(e=>{
+    const cands=secs.filter(s=>!s.crew&&s.date===e.date&&s.dep===e.dep&&s.arr===e.arr);
+    if(!cands.length) return;
+    const t=e.timestamp||0;
+    const best=cands.reduce((a,b)=>Math.abs((b.timestamp||0)-t)<Math.abs((a.timestamp||0)-t)?b:a);
+    best.crew=e.crew; n++;
+  });
+  return n;
+}
 function mergeSectors(a,b){const map=new Map();[...(a||[]),...(b||[])].forEach(s=>{if(s&&s.timestamp)map.set(s.timestamp,s);else if(s)map.set(JSON.stringify(s),s);});return [...map.values()].sort((x,y)=>(x.timestamp||0)-(y.timestamp||0));}
 async function saveData(d){
   DB=d;const json=JSON.stringify(d);
@@ -2281,7 +2329,11 @@ async function initStorage(){
     crewNames:(fromArtifact&&fromArtifact.crewNames)||(fromLocal&&fromLocal.crewNames)||[],
     // 21 Sep 2026: per-tail cross-day fuel carryover note — see cross-day-tankering-spec.md.
     // Survives date changes (unlike CL_STATE, which resets on date change by design).
-    fuelBank:(fromArtifact&&fromArtifact.fuelBank)||(fromLocal&&fromLocal.fuelBank)||{}};
+    fuelBank:(fromArtifact&&fromArtifact.fuelBank)||(fromLocal&&fromLocal.fuelBank)||{},
+    // 13 Oct 2026 fix: the personal logbook entries (other pilot's name, function, remarks) were
+    // missing from this rebuild, so every app restart silently dropped them — same kind of bug
+    // as regNames/crewNames on 19 Jul.
+    personalLog:(fromArtifact&&fromArtifact.personalLog)||(fromLocal&&fromLocal.personalLog)||[]};
   // 18 Sep 2026 fix: the four seed calls that used to run here (maybeSeedDemo19,
   // freshStartTrialPassed, seedReal17Jul2026, seedReal22Jul2026) were test/demo fixtures for
   // the rotation-test chat only. They auto-populate sample sectors + ELITE status on ANY
@@ -2746,7 +2798,7 @@ function clUid(){ return Math.random().toString(36).slice(2,9); }
 // (= 0 min via clDiffMin), never NaN.
 function clToMin(t){
   if(t==null) return null;
-  const s=String(t).trim();
+  const s=String(t).trim().toUpperCase().replace(/\s*(UTC|Z|L|LT)$/,''); // 14 Oct 2026: "1545UTC", "1728Z"
   let h,m;
   if(s.includes(':')){ const p=s.split(':'); h=parseInt(p[0],10); m=parseInt(p[1],10); }
   else if(/^\d{3,4}$/.test(s)){ h=parseInt(s.slice(0,-2),10); m=parseInt(s.slice(-2),10); }
@@ -2777,6 +2829,16 @@ function clInterpBurn(table,lbs,fallbackPer1000){
   const last=pts[pts.length-1], prev=pts[pts.length-2]||{add:0,burn:0};
   const slope=(last.burn-prev.burn)/(last.add-prev.add);
   return last.burn+slope*(lbs-last.add);
+}
+// "−€37,51" instead of "€-37,51"; plus=true also writes "+€5,33" for positives
+function clSignedEur(n,plus){ n=+n||0; if(Math.abs(n)<0.005) n=0; return (n<0?'−':(plus&&n>0?'+':''))+'€'+clEur(Math.abs(n)); }
+// 16 Oct 2026: "1st service FREE" at a stop — from the reader (toiletFirstFree/waterFirstFree),
+// or, for days read before that existed, from the Brief note it wrote ("Toilet 1st service FREE").
+function clFirstFree(st,kind){
+  if(!st) return false;
+  if(st[kind+'FirstFree']!=null) return !!st[kind+'FirstFree'];
+  const words=kind==='toilet'?'(toilet|lav)':'(water)';
+  return new RegExp(words+'[^.;/]{0,25}(1st|first)[^.;/]{0,15}free','i').test(st.note||'');
 }
 function clEur(n){ return (isNaN(n)?0:n).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function clCap(s){ return s==='ofp'?'Ofp':s.charAt(0).toUpperCase()+s.slice(1); }
@@ -2894,7 +2956,7 @@ function saveDynamicKnownDay(dateStr,day){
 function getKnownDay(dateStr){
   const day=CL_KNOWN_DAYS[dateStr]||loadDynamicKnownDays()[dateStr]||null;
   if(!day||!Array.isArray(day.legs)) return day;
-  return {...day,legs:day.legs.map(l=>clFixLegOrder(l).leg)};
+  return {...day,legs:day.legs.map(l=>clFixLegOrder(clNormLegTimes({...l})).leg)};
 }
 // 6 Oct 2026: the Journey Log prints each leg in two rows, and the lower row is
 // "On Block | Landing" — the reverse of time order. The Teclog reader swapped them on 20 Sep
@@ -3073,6 +3135,8 @@ async function openCostLedger(){
   if(!CL_STATE) CL_STATE=clLoadState();
   const dEl=document.getElementById('cl-dateField'); if(dEl) dEl.value=CL_STATE.date;
   document.getElementById('costLedgerModal').classList.add('active');
+  // 18 Oct 2026: days saved before the +1000 lbs habit column get their habit value filled in once
+  try{ if(clLoadHistory().some(h=>h.withHabit==null)) clRecalcAllDays(); }catch(e){ console.warn('habit backfill failed',e); }
   clRenderStops(); clCompute(); clRenderLegs(); clRenderTrend();
   await idbPrefetchCurrentDay();
   clRenderUploads();
@@ -3521,7 +3585,7 @@ function cpHandleUpload(ev,kind){
     if(kind==='teclog'&&f.type==='application/pdf'){
       const dest={
         push:entry=>{ CP_STATE.uploads.teclog.push(entry); },
-        afterConfirm:note=>{ cpRefreshUploadUI('teclog'); alert(note); },
+        afterConfirm:note=>{ cpRefreshUploadUI('teclog'); showToast(note); },
         afterCancel:()=>{}
       };
       f.arrayBuffer().then(arrBuf=>startFlightpackPdfReview(f,arrBuf,TECLOG_CATEGORIES,dest));
@@ -3579,14 +3643,27 @@ function cpFinish(){
   // stray Enter keypress), never close out a day without its Teclog.
   if(CP_STATE.isLast===true&&CP_STATE.uploads.teclog.length===0){ cpUpdateFinishGate(); return; }
   clAppendLegFromFlightLog(CP_STATE.entry);
-  ['brief','ofp','teclog'].forEach(k=>{ CL_STATE.uploads[k]=CL_STATE.uploads[k].concat(CP_STATE.uploads[k]); });
+  // 14 Oct 2026: no duplicates — the same flight pack was being added once per leg
+  ['brief','ofp','teclog'].forEach(k=>{ const have=new Set(CL_STATE.uploads[k].map(x=>x.id)); CL_STATE.uploads[k]=CL_STATE.uploads[k].concat(CP_STATE.uploads[k].filter(x=>x&&!have.has(x.id)&&have.add(x.id))); });
   clSaveState();
-  if(CP_STATE.isLast===true){
+  const isLast=CP_STATE.isLast===true, newTeclog=CP_STATE.uploads.teclog.length>0;
+  if(isLast){
     clRenderStops(); clCompute(); clRenderLegs();
     try{ clSaveDay(); }catch(e){}
   }
   document.getElementById('costPromptModal').classList.remove('active');
   closeFlightLog();
+  // 16 Oct 2026: a Teclog attached here in the game was only stored, never read — only the
+  // statistic page started the reading. Now it's read right away in the background; when it's
+  // done the day is saved again with the real figures and a short message shows the result.
+  if(newTeclog){
+    showToast('🤖 Reading your Teclog in the background…');
+    autoTranscribeTeclog().then(ok=>{
+      if(ok&&isLast){ try{ clSaveDay(); }catch(e){} }
+      const st=document.getElementById('autoTranscribeTeclogStatus');
+      showToast(st&&st.textContent?st.textContent:(ok?'✅ Teclog read.':'⚠ Teclog could not be read — open the statistic page and tap 🔄 RE-READ TECLOG.'));
+    });
+  }
 }
 
 function clHandleUpload(ev,kind){
@@ -3667,7 +3744,7 @@ function clRenderUploads(){
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
-          ${i===0?`<button type="button" onclick="clRereadFlightpack()" style="background:#16324a;color:#9fe6d6;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:8px 12px;cursor:pointer;">🔄 RE-READ</button>`:''}
+          ${i===0?`<button type="button" onclick="clRereadFlightpack()" style="background:#16324a;color:#9fe6d6;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:8px 12px;cursor:pointer;">🔄 RE-READ${fpList.length>1?' ALL '+fpList.length:''}</button>`:''}
           <button type="button" onclick="clViewFpSummary(${i})" style="background:#223347;color:#9fc8ff;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:8px 12px;cursor:pointer;">👁 VIEW</button>
         </div>
       </div>
@@ -3702,8 +3779,8 @@ function clRenderStops(){
         <div class="cl-fld"><label>GPU price € (Brief, or €100 avg. if missing)</label><input type="number" value="${s.gpuPrice}" readonly onchange="clUpdStop(${i},'gpuPrice',this.value)"></div>
       </div>
       <div class="cl-grid c2" style="margin-top:6px;">
-        <div class="cl-fld"><label>Toilet price € (Brief, or €100 avg. if missing)</label><input type="number" value="${s.toiletPrice}" readonly onchange="clUpdStop(${i},'toiletPrice',this.value)"></div>
-        <div class="cl-fld"><label>Water price € (Brief, or €100 avg. if missing)</label><input type="number" value="${s.waterPrice}" readonly onchange="clUpdStop(${i},'waterPrice',this.value)"></div>
+        <div class="cl-fld"><label>Toilet price € (Brief, or €100 avg. if missing)${clFirstFree(s,'toilet')?' · <span style="color:#8fe8c4;">1st service FREE</span>':''}</label><input type="number" value="${s.toiletPrice}" readonly onchange="clUpdStop(${i},'toiletPrice',this.value)"></div>
+        <div class="cl-fld"><label>Water price € (Brief, or €100 avg. if missing)${clFirstFree(s,'water')?' · <span style="color:#8fe8c4;">1st service FREE</span>':''}</label><input type="number" value="${s.waterPrice}" readonly onchange="clUpdStop(${i},'waterPrice',this.value)"></div>
       </div>
       ${s.note?`<div class="cl-flag">${s.note}</div>`:''}
     </div>
@@ -4021,11 +4098,12 @@ function clTankeringDay(state,opts){
         const lb=labels[0], take=Math.min(lb.lbs,need);
         let eur=0, txt;
         if(priceHere!=null&&lb.price!=null){
-          eur=clLbsToL(take,density)*(priceHere-lb.price);
+          eur=Math.round(clLbsToL(take,density)*(priceHere-lb.price)*100)/100; // whole cents, so the shown lines add up exactly
           txt=`${dep.airport}: ${Math.round(take)} lbs ${lb.airport} fuel used instead of buying here — ${Math.round(clLbsToL(take,density))} L × (€${priceHere.toFixed(2)} − €${lb.price.toFixed(2)})`;
         } else txt=`${dep.airport}: ${Math.round(take)} lbs ${lb.airport} fuel used — price missing, not counted`;
         out.cbe-=eur;
-        out.events.push({type:'used',airport:dep.airport,from:lb.airport,lbs:take,eur,text:txt});
+        out.events.push({type:'used',airport:dep.airport,from:lb.airport,lbs:take,eur,text:txt,
+          litres:clLbsToL(take,density),local:priceHere,paid:lb.price});
         if(lb.hops===1&&lb.to===dep.airport&&lb.ofpRate!=null&&lb.landedLbs>0&&priceHere!=null&&lb.price!=null){
           const share=take/lb.landedLbs;
           const ofpEur=lb.origLbs*share*lb.ofpRate/1000*lb.fx;
@@ -4045,8 +4123,10 @@ function clTankeringDay(state,opts){
       if(burn>0){
         let cost=0; const f=(Sdep-burn)/Sdep;
         labels.forEach(x=>{ const b=x.lbs*(1-f); const c=(x.price!=null)?clLbsToL(b,density)*x.price:0; cost+=c; x.burnCost=(x.burnCost||0)+c; x.lbs*=f; });
+        cost=Math.round(cost*100)/100; // whole cents, so the shown lines add up exactly
         out.cbe+=cost;
-        out.events.push({type:'burn',lbs:burn,eur:-cost,text:`${l.from}→${l.to}: ${Math.round(burn)} lbs extra burn from carrying ${Math.round(Sdep)} lbs (OFP burn table) — fuel paid for and burned`});
+        out.events.push({type:'burn',lbs:burn,eur:-cost,leg:l.from+'→'+l.to,litres:clLbsToL(burn,density),
+          paid:clLbsToL(burn,density)>0?cost/clLbsToL(burn,density):null,text:`${l.from}→${l.to}: ${Math.round(burn)} lbs extra burn from carrying ${Math.round(Sdep)} lbs (OFP burn table) — fuel paid for and burned`});
       }
     }
     labels=labels.filter(x=>x.lbs>=0.5);
@@ -4068,6 +4148,33 @@ function clTankeringDay(state,opts){
   }
   return out;
 }
+
+// 18 Oct 2026 (Cem): "+1000 lbs HABIT (simulated)" — the same day flown as Without CBE, but a
+// pilot who takes OFP + 1000 lbs on every leg. Info only: never part of the bonus.
+// Cost = the extra burn of carrying 1000 lbs (OFP burn table, 1000 lbs row) on each leg, priced
+// at the departure stop. No price difference: he fills up to OFP + 1000 at every stop, so the
+// 1000 lbs never replace a purchase — they stay in the tanks.
+function clHabitDay(state,density){
+  const out={eur:0,rows:[],missing:[]};
+  (state.legs||[]).forEach(l=>{
+    const dep=(state.stops||[])[l.depStop]||{};
+    const burn=clInterpBurn(l.burnTable,1000,l.burnAdjPer1000);
+    if(!(burn>0)){ out.missing.push(l.from+'→'+l.to+': no OFP burn table'); return; }
+    if(!clStopPriceKnown(dep)){ out.missing.push(l.from+'→'+l.to+': fuel price missing at '+(dep.airport||'?')); return; }
+    const litres=clLbsToL(burn,density), price=Number(dep.fuelPrice);
+    const eur=Math.round(litres*price*100)/100;
+    out.eur+=eur; out.rows.push({leg:l.from+'→'+l.to,lbs:burn,litres,price,eur});
+  });
+  out.eur=Math.round(out.eur*100)/100;
+  return out;
+}
+function clShowPop(which){
+  const p=CL_POP[which]; if(!p)return;
+  document.getElementById('clPopTitle').innerHTML=p.title;
+  document.getElementById('clPopBody').innerHTML=p.body;
+  pfOpen('clPop');
+}
+var CL_POP={};
 
 function clApuBaselineMin(s,si){
   if(s.phase!=='turnaround') return 80;
@@ -4100,6 +4207,7 @@ function clComputeCore(opts){
   // input needed here, keeping this area purely about documents and figures)
   const APU_THRESH_MIN=40; // ground-time CBE target (40 vs 80min baseline)
   let apuNon=0,apuCbe=0,taxiNon=0,taxiCbe=0,taxiApuNon=0,taxiApuCbe=0,toiletNon=0,toiletCbe=0,waterNon=0,waterCbe=0,gpuNon=0,gpuCbe=0,tankNon=0,tankCbe=0,burnNon=0,burnCbe=0;
+  const svcUsed={toilet:new Set(),water:new Set()}; // stops whose free first service is already used today
   // 23 Sep 2026: so the "Fuel tankering" line can explain itself instead of showing one
   // unexplained lump number — a pilot who didn't make the original tankering call still
   // deserves to see WHY a saving is on their sheet, not just that it's there. The split
@@ -4191,14 +4299,22 @@ function clComputeCore(opts){
     //   that would've applied there had it been needed).
     // Fixed 21 Aug 2026 — previously NO and NOT REQUIRED were indistinguishable and both used
     // the arrival airport's price with no saving; NOT REQUIRED should show a full saving instead.
-    const depToilet=dep?.toiletPrice??0, arrToilet=arr?.toiletPrice??0;
+    // 16 Oct 2026 (Cem, option 2): when the Brief says "1st service FREE" at a stop, the first
+    // service used there costs €0; any further service at the same stop that day pays the price.
+    const svcPrice=(st,idx,kind)=>{ if(!st) return 0; const full=st[kind+'Price']??0; return (clFirstFree(st,kind)&&!svcUsed[kind].has(idx))?0:full; };
+    const useSvc=(idx,kind,st)=>{ if(st&&clFirstFree(st,kind)) svcUsed[kind].add(idx); };
+    const depToilet=svcPrice(dep,l.depStop,'toilet'), arrToilet=svcPrice(arr,l.arrStop,'toilet');
     const cheaperToilet=Math.min(depToilet,arrToilet), costlierToilet=Math.max(depToilet,arrToilet);
+    const toiletAt=depToilet<=arrToilet?[l.depStop,dep]:[l.arrStop,arr], toiletDear=depToilet<=arrToilet?[l.arrStop,arr]:[l.depStop,dep];
+    if(l.toiletChoice==='yes') useSvc(toiletAt[0],'toilet',toiletAt[1]); else if(l.toiletChoice==='no') useSvc(toiletDear[0],'toilet',toiletDear[1]);
     if(l.toiletChoice==='yes'){ toiletNon+=costlierToilet; toiletCbe+=cheaperToilet; toiletHas=true; }
     else if(l.toiletChoice==='no'){ toiletNon+=costlierToilet; toiletCbe+=costlierToilet; toiletHas=true; }
     else if(l.toiletChoice==='na'){ toiletNon+=depToilet; toiletCbe+=0; toiletHas=true; }
 
-    const depWater=dep?.waterPrice??0, arrWater=arr?.waterPrice??0;
+    const depWater=svcPrice(dep,l.depStop,'water'), arrWater=svcPrice(arr,l.arrStop,'water');
     const cheaperWater=Math.min(depWater,arrWater), costlierWater=Math.max(depWater,arrWater);
+    const waterAt=depWater<=arrWater?[l.depStop,dep]:[l.arrStop,arr], waterDear=depWater<=arrWater?[l.arrStop,arr]:[l.depStop,dep];
+    if(l.waterChoice==='yes') useSvc(waterAt[0],'water',waterAt[1]); else if(l.waterChoice==='no') useSvc(waterDear[0],'water',waterDear[1]);
     if(l.waterChoice==='yes'){ waterNon+=costlierWater; waterCbe+=cheaperWater; waterHas=true; }
     else if(l.waterChoice==='no'){ waterNon+=costlierWater; waterCbe+=costlierWater; waterHas=true; }
     else if(l.waterChoice==='na'){ waterNon+=depWater; waterCbe+=0; waterHas=true; }
@@ -4218,39 +4334,88 @@ function clComputeCore(opts){
     ['Fuel tankering',tankNon,tankCbe,TK.has],
   ];
   const totalNon=rows.reduce((a,r)=>a+r[1],0), totalCbe=rows.reduce((a,r)=>a+r[2],0);
-  return {rows,totalNon,totalCbe,saved:totalNon-totalCbe,TK};
+  const HB=clHabitDay(CL_STATE,parseFloat((document.getElementById('cl-setDensity')||{}).value)||0.8);
+  return {rows,totalNon,totalCbe,saved:totalNon-totalCbe,TK,HB,totalHabit:totalNon+HB.eur};
 }
 function clCompute(){
-  if(CL_HEADLESS){ CL_LAST=(()=>{const r=clComputeCore({});return {totalNon:r.totalNon,totalCbe:r.totalCbe,saved:r.saved};})(); return; }
+  if(CL_HEADLESS){ CL_LAST=(()=>{const r=clComputeCore({});return {totalNon:r.totalNon,totalCbe:r.totalCbe,saved:r.saved,totalHabit:r.totalHabit};})(); return; }
   const R=clComputeCore({});
-  const {rows,totalNon,totalCbe,TK}=R;
-  const note=(txt,col,bg)=>`<tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:${col};font-style:italic;${bg?'background:'+bg+';':''}">${txt}</td></tr>`;
+  const {rows,totalNon,totalCbe,TK,HB,totalHabit}=R;
+  CL_POP={};
+  const note=(txt,col,bg)=>`<tr><td colspan="5" style="padding:4px 8px;font-size:10px;color:${col};font-style:italic;${bg?'background:'+bg+';':''}">${txt}</td></tr>`;
   document.getElementById('cl-resBody').innerHTML=rows.map(r=>{
     const [label,non,cbe,has]=r;
     if(!has){
       const why=(label==='Fuel tankering')?(TK.warnings[0]||'— no Teclog fuel readings yet —'):'— no game data yet, sync above —';
-      return `<tr><td>${label}</td><td class="non">€${clEur(non)}</td><td colspan="2" style="color:#16c79a;font-style:italic;">${why}</td></tr>`;
+      const habNA=(label==='Fuel tankering')?HB.eur:non;
+      return `<tr><td>${label}</td><td class="hab">${clSignedEur(habNA)}</td><td class="non">€${clEur(non)}</td><td colspan="2" style="color:#16c79a;font-style:italic;">${why}</td></tr>`;
     }
     let extra='';
     if(label==='Fuel tankering'){
-      TK.events.forEach(e=>{ extra+=note('↳ '+e.text+(e.type!=='bought'?` = ${e.eur>=0?'+':'−'}€${clEur(Math.abs(e.eur))}`:''),e.type==='bought'?'#9fc8ff':(e.eur>=0?'#8fe8c4':'#ffd76a')); });
-      const seen=new Set();
+      // 14 Oct 2026 (Cem, mockup "B v3"): two summary lines (price difference / extra burn),
+      // then a folded table — one event per row: Where · What · lbs · Litres · € per litre · €.
+      // Litres × €/L = € on every row, so anyone can redo it with a calculator.
+      const used=TK.events.filter(e=>e.type==='used'), burns=TK.events.filter(e=>e.type==='burn');
+      const sumU=used.reduce((a,e)=>a+e.eur,0), sumB=burns.reduce((a,e)=>a+e.eur,0);
+      // 18 Oct 2026 (Cem): the two summary lines and the table moved into a pop-up, shorter wording.
+      const sline=(t,v)=>`<tr><td style="padding:5px 7px;font-size:11px;border-bottom:1px solid #132a36;color:${v>=0?'#8fe8c4':'#ffd76a'};">${t}</td><td style="padding:5px 7px;font-size:11px;border-bottom:1px solid #132a36;text-align:right;white-space:nowrap;font-weight:700;color:${v>=0?'#8fe8c4':'#ffd76a'};">${clSignedEur(v,true)}</td></tr>`;
+      let sum='';
+      if(used.length) sum+=sline('Price difference',sumU);
+      if(burns.length) sum+=sline('Extra burn',sumB);
+      const f2=n=>(n==null||isNaN(n))?'–':n.toFixed(2).replace('.',','), f1=n=>n.toFixed(1).replace('.',',');
+      const td='padding:5px 7px;border-bottom:1px solid #132a36;white-space:nowrap;';
+      const rowsHtml=TK.events.filter(e=>e.type!=='bought').map(e=>{
+        const col=e.eur>=0?'#8fe8c4':'#ffd76a';
+        const where=e.type==='used'?e.airport:(e.leg||'');
+        const what=e.type==='used'?('from '+e.from):'extra burn';
+        const ppl=e.type==='used'?(e.local!=null&&e.paid!=null?`local ${f2(e.local)} − paid ${f2(e.paid)}`:'price missing'):`paid ${f2(e.paid)}`;
+        return `<tr><td style="${td}text-align:left;">${where}</td><td style="${td}text-align:left;">${what}</td><td style="${td}text-align:right;">${Math.round(e.lbs)}</td><td style="${td}text-align:right;">${e.litres!=null?f1(e.litres):'–'}</td><td style="${td}text-align:center;color:#7d93a8;">${ppl}</td><td style="${td}text-align:right;font-weight:700;color:${col};">${clSignedEur(e.eur,true).replace('€','')}</td></tr>`;
+      }).join('');
+      const th='padding:5px 7px;font-size:9.5px;color:#7d93a8;font-weight:600;border-bottom:1px solid #132a36;white-space:nowrap;';
+      let det=sum?`<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">${sum}</table>`:'';
+      if(rowsHtml) det+=`<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;background:#0a1828;">
+        <tr><td style="${th}text-align:left;">Where</td><td style="${th}text-align:left;">What</td><td style="${th}text-align:right;">lbs</td><td style="${th}text-align:right;">Litres</td><td style="${th}text-align:center;">€ per litre</td><td style="${th}text-align:right;">€</td></tr>
+        ${rowsHtml}
+        <tr><td colspan="5" style="${td}text-align:left;font-weight:800;border-top:1px solid #335;">Total</td><td style="${td}text-align:right;font-weight:800;color:${(sumU+sumB)>=0?'#8fe8c4':'#ffd76a'};">${clSignedEur(sumU+sumB,true).replace('€','')}</td></tr></table></div>`;
+      const dens=parseFloat((document.getElementById('cl-setDensity')||{}).value)||0.8;
+      det+=`<div style="font-size:10px;color:#7d93a8;font-style:italic;padding:6px 8px;line-height:1.5;">+ cheaper than local · − dearer or burned · 1 lb = ${(0.453592/dens).toFixed(3).replace('.',',')} L`+(TK.expected?` · ⛽ in tanks: ${Math.round(TK.expected.lbs)} lbs (${TK.expected.from})`:'')+`</div>`;
+      const seen=new Set(); let warnHtml='';
       (TK.checks||[]).forEach(c=>{
         if(c.none){ const k='n'+c.from+c.to; if(seen.has(k))return; seen.add(k);
-          extra+=note(`No OFP cross-check for ${c.from} fuel used at ${c.to}: used ${c.hops} stops after purchase (the OFP rate only covers the next airport).`,'#7d93a8'); return; }
-        extra+=note(c.ok
-          ?`✓ Cross-check with OFP ${c.from} → ${c.to} (${c.rate} $/1000 lbs): ≈ €${clEur(c.ofpEur)} · game €${clEur(c.gameEur)} · difference ${c.diff.toFixed(0)}%`
-          :`⚠ OFP and game differ by ${c.diff.toFixed(0)}% (${c.from} → ${c.to}: OFP ≈ €${clEur(c.ofpEur)}, game €${clEur(c.gameEur)}). Check the Brief prices, the Teclog readings or the OFP savings figure.`,
-          c.ok?'#8fe8c4':'#ffd76a',c.ok?'#0f2e22':'#3a2e0a');
+          det+=`<div style="font-size:10px;color:#7d93a8;font-style:italic;padding:2px 8px 6px;">OFP check: ${c.from} fuel used ${c.hops} stops later — no OFP figure to compare.</div>`; return; }
+        if(c.ok) det+=`<div style="font-size:10px;color:#8fe8c4;font-style:italic;padding:2px 8px 6px;">✓ OFP check ${c.from} → ${c.to} (${c.rate} $/1000 lbs): ≈ ${clSignedEur(c.ofpEur)} · game ${clSignedEur(c.gameEur)} · difference ${c.diff.toFixed(0)}%</div>`;
+        else warnHtml+=note(`⚠ OFP and game differ (${c.from} → ${c.to}: OFP ≈ ${clSignedEur(c.ofpEur)}, game ${clSignedEur(c.gameEur,true)}) — the OFP uses other fuel prices than the Brief, or a reading is off. Check the Brief prices and the Teclog.`,'#ffd76a','#3a2e0a');
       });
-      if(TK.expected) extra+=note(`⛽ Carried for later: ${Math.round(TK.expected.lbs)} lbs from ${TK.expected.from}`+(TK.expected.eur!=null?` — expected ≈ ${TK.expected.eur>=0?'+':'−'}€${clEur(Math.abs(TK.expected.eur))} if used at ${TK.expected.at}`:'')+'. Counted on the day it replaces a purchase.','#7db8e8','#0f1f2e');
+      if(det){ CL_POP.cbe={title:'<span style="color:#ffd76a">⛽ FUEL TANKERING · WITH CBE</span>',body:det};
+        extra+=`<tr><td colspan="5" style="padding:0;border-bottom:1px solid #1d3a44;text-align:left;"><button class="cl-tap" onclick="clShowPop('cbe')">▸ Details (tap)</button></td></tr>`; }
+      extra+=warnHtml;
     }
-    return `<tr><td>${label}</td><td class="non">€${clEur(non)}</td><td class="cbe">€${clEur(cbe)}</td><td class="saved">€${clEur(non-cbe)}</td></tr>`+extra;
-  }).join('')+`<tr class="total"><td>Total</td><td class="non">€${clEur(totalNon)}</td><td class="cbe">€${clEur(totalCbe)}</td><td class="saved">€${clEur(totalNon-totalCbe)}</td></tr>`;
+    const hab=(label==='Fuel tankering')?HB.eur:non;
+    return `<tr><td>${label}</td><td class="hab">${clSignedEur(hab)}</td><td class="non">${clSignedEur(non)}</td><td class="cbe">${clSignedEur(cbe)}</td><td class="saved">${clSignedEur(non-cbe)}</td></tr>`+extra;
+  }).join('')+`<tr class="total"><td>Total</td><td class="hab">${clSignedEur(totalHabit)}</td><td class="non">${clSignedEur(totalNon)}</td><td class="cbe">${clSignedEur(totalCbe)}</td><td class="saved">${clSignedEur(totalNon-totalCbe)}</td></tr>`;
   document.getElementById('cl-tapeNon').textContent='€'+clEur(totalNon);
   document.getElementById('cl-tapeCbe').textContent='€'+clEur(totalCbe);
-  document.getElementById('cl-tapeSaved').textContent='€'+clEur(totalNon-totalCbe);
-  CL_LAST={totalNon,totalCbe,saved:totalNon-totalCbe};
+  document.getElementById('cl-tapeSaved').textContent=clSignedEur(totalNon-totalCbe);
+  CL_LAST={totalNon,totalCbe,saved:totalNon-totalCbe,totalHabit};
+  // habit line + pop-up
+  const hl=document.getElementById('cl-habLine');
+  if(hl){
+    if(HB.rows.length){
+      const td='padding:5px 7px;border-bottom:1px solid #132a36;';
+      const th=td+'font-size:9.5px;color:#7d93a8;font-weight:600;';
+      const f2=n=>n.toFixed(2).replace('.',','), f1=n=>n.toFixed(1).replace('.',',');
+      let body=`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px;">
+        <tr><td style="${td}color:#ffd0d0;">Price difference</td><td style="${td}text-align:right;color:#7d93a8;font-weight:700;">€0,00</td></tr>
+        <tr><td style="${td}color:#ffd0d0;">Extra burn</td><td style="${td}text-align:right;color:#ff6b6b;font-weight:700;">${clSignedEur(-HB.eur)}</td></tr></table>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;background:#0a1828;">
+        <tr><td style="${th}">Where</td><td style="${th}">What</td><td style="${th}text-align:right;">lbs</td><td style="${th}text-align:right;">Litres</td><td style="${th}text-align:center;">€ per litre</td><td style="${th}text-align:right;">€</td></tr>
+        ${HB.rows.map(r=>`<tr><td style="${td}">${r.leg}</td><td style="${td}">extra burn</td><td style="${td}text-align:right;">${Math.round(r.lbs)}</td><td style="${td}text-align:right;">${f1(r.litres)}</td><td style="${td}text-align:center;color:#7d93a8;">paid ${f2(r.price)}</td><td style="${td}text-align:right;font-weight:700;color:#ff6b6b;">${clSignedEur(-r.eur).replace('€','')}</td></tr>`).join('')}
+        <tr><td colspan="5" style="${td}font-weight:800;border-top:1px solid #335;">Total</td><td style="${td}text-align:right;font-weight:800;color:#ff6b6b;">${clSignedEur(-HB.eur).replace('€','')}</td></tr></table></div>
+        <div style="font-size:10px;color:#7d93a8;font-style:italic;padding:6px 8px;line-height:1.5;">No price difference: the 1000 lbs stay in the tanks and never replace a purchase. Only the extra burn costs.<br>Extra fuel for weather, ATC or delay is always the captain's call.`+(HB.missing.length?'<br>⚠ Not counted: '+HB.missing.join(' · '):'')+`</div>`;
+      CL_POP.hab={title:'<span style="color:#ff6b6b">🔁 +1000 lbs HABIT (simulated)</span>',body};
+      hl.innerHTML=`<div class="cl-habline">🔁 <b>+1000 lbs habit: ${clSignedEur(HB.eur)} more</b> today <button class="cl-tap" style="color:#ffb0b0;padding:0 0 0 6px;" onclick="clShowPop('hab')">▸ Details (tap)</button></div>`;
+    } else hl.innerHTML='';
+  }
   if(typeof clRenderWarnings==='function') clRenderWarnings(R);
 }
 
@@ -4317,7 +4482,7 @@ function clRecalcDay(dateISO){
     const r1=clSyncFromGame(), r2=clLoadTranscribed();
     const R=clComputeCore({});
     return {date:dateISO,tail:CL_STATE.tail,flightNo:CL_STATE.flightNo,legs:CL_STATE.legs.length,
-      withoutCbe:R.totalNon,withCbe:R.totalCbe,saved:R.saved,
+      withoutCbe:R.totalNon,withCbe:R.totalCbe,saved:R.saved,withHabit:R.totalHabit,
       warnings:[...(R.TK.warnings||[]),...(R.TK.checks||[]).filter(c=>!c.none&&!c.ok).map(c=>`Tankering: OFP and game differ by ${c.diff.toFixed(0)}% (${c.from} → ${c.to}) — check prices/Teclog`),...clTeclogChecks(CL_STATE),...(r2&&r2.ok?[]:['No Brief/OFP data for this day — prices are fallback values'])],
       gameOk:!!(r1&&r1.ok)};
   }finally{ CL_STATE=keep; CL_HEADLESS=false; }
@@ -4330,7 +4495,7 @@ function clRecalcAllDays(){
     const r=clRecalcDay(d);
     if(!r.gameOk)return;
     const old=byDate.get(d)||{};
-    byDate.set(d,{...old,date:d,tail:r.tail,flightNo:r.flightNo,legs:r.legs,withoutCbe:r.withoutCbe,withCbe:r.withCbe,saved:r.saved,
+    byDate.set(d,{...old,date:d,tail:r.tail,flightNo:r.flightNo,legs:r.legs,withoutCbe:r.withoutCbe,withCbe:r.withCbe,saved:r.saved,withHabit:r.withHabit,
       crewSize:old.crewSize||2,warnings:r.warnings,auto:true});
   });
   const merged=[...byDate.values()].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
@@ -4366,7 +4531,7 @@ function clSaveDay(){
     return;
   }
   const hist=clLoadHistory();
-  const entry={date:dateKey,tail:CL_STATE.tail,flightNo:CL_STATE.flightNo,withoutCbe:CL_LAST.totalNon,withCbe:CL_LAST.totalCbe,saved:CL_LAST.saved,legs:CL_STATE.legs.length,crewSize:CL_STATE.crewSize||2};
+  const entry={date:dateKey,tail:CL_STATE.tail,flightNo:CL_STATE.flightNo,withoutCbe:CL_LAST.totalNon,withCbe:CL_LAST.totalCbe,saved:CL_LAST.saved,withHabit:CL_LAST.totalHabit,legs:CL_STATE.legs.length,crewSize:CL_STATE.crewSize||2};
   const idx=hist.findIndex(h=>(clDateToISO(h.date)||h.date)===dateKey);
   const wasUpdate=idx>=0;
   if(idx>=0) hist[idx]=entry; else hist.push(entry);
@@ -4389,11 +4554,14 @@ function clBackupReminder(){
 function clRenderTrend(){
   const hist=clLoadHistory();
   const wrap=document.getElementById('cl-trendWrap'), empty=document.getElementById('cl-trendEmpty');
-  if(hist.length===0){ if(empty)empty.style.display='block'; wrap.querySelectorAll('svg,table').forEach(n=>n.remove()); return; }
+  if(hist.length===0){ if(empty)empty.style.display='block'; wrap.querySelectorAll('svg,table,.cl-habline').forEach(n=>n.remove()); return; }
   if(empty) empty.style.display='none';
   const W=600,H=170,padL=44,padR=15,padT=18,padB=28;
   const nonV=hist.map(h=>h.withoutCbe), cbeV=hist.map(h=>h.withCbe);
-  const all=nonV.concat(cbeV); let lo=Math.min(0,...all),hi=Math.max(...all); if(hi===lo)hi=lo+1; const pad=(hi-lo)*0.12||1; lo-=pad; hi+=pad;
+  // 18 Oct 2026: +1000 lbs habit (simulated) — days saved before this feature have no value yet
+  const habV=hist.map(h=>(h.withHabit!=null&&!isNaN(h.withHabit))?+h.withHabit:null);
+  const habPts=habV.map((v,i)=>[v,i]).filter(x=>x[0]!=null);
+  const all=nonV.concat(cbeV,habPts.map(x=>x[0])); let lo=Math.min(0,...all),hi=Math.max(...all); if(hi===lo)hi=lo+1; const pad=(hi-lo)*0.12||1; lo-=pad; hi+=pad;
   const X=i=>padL+(hist.length<=1?0:i*(W-padL-padR)/(hist.length-1));
   const Y=v=>padT+(H-padT-padB)*(1-(v-lo)/(hi-lo));
   const lineFor=arr=>arr.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
@@ -4405,31 +4573,37 @@ function clRenderTrend(){
   const labels=hist.map((h,i)=>`<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="7.5" fill="#5f8794" text-anchor="middle" font-family="monospace">${h.date.slice(5)}</text>`).join('');
   const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:#0a1622;border:1px solid #234;border-radius:8px;">
     ${grid}
+    ${habPts.length?`<polyline points="${habPts.map(([v,i])=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')}" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="6 4"/>`+habPts.map(([v,i])=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="#0d1b30" stroke="#ff6b6b" stroke-width="2"/>`).join(''):''}
     <polyline points="${lineFor(nonV)}" fill="none" stroke="#ffb84d" stroke-width="2"/>
     <polyline points="${lineFor(cbeV)}" fill="none" stroke="#16c79a" stroke-width="2"/>
     ${dotsFor(nonV,'#ffb84d')}${dotsFor(cbeV,'#16c79a')}
     ${labels}
     <text x="${padL}" y="12" font-size="8" fill="#ffb84d" font-family="monospace">■ Without CBE</text>
     <text x="${padL+95}" y="12" font-size="8" fill="#16c79a" font-family="monospace">■ With CBE</text>
+    <text x="${padL+175}" y="12" font-size="8" fill="#ff6b6b" font-family="monospace">- - +1000 lbs habit (simulated)</text>
   </svg>`;
   // Every flying day, listed explicitly (most recent first) — the chart shows the trend,
   // this table shows the exact number behind each individual day.
   const totalSaved=hist.reduce((a,h)=>a+h.saved,0);
   const rowsHtml=[...hist].reverse().map(h=>`
     <tr>
-      <td>${h.date}${h.tail?' · '+h.tail:''}</td>
+      <td>${h.date}${h.tail?'<span class="cl-tail"> · '+h.tail+'</span>':''}</td>
+      <td class="hab">${h.withHabit!=null?'€'+clEur(h.withHabit):'–'}</td>
       <td class="non">€${clEur(h.withoutCbe)}</td>
       <td class="cbe">€${clEur(h.withCbe)}</td>
       <td class="saved">€${clEur(h.saved)}</td>
       <td style="text-align:center;"><span style="cursor:pointer;color:#7f92a3;" onclick="clDeleteHistDay('${h.date}')">✕</span></td>
     </tr>`).join('');
   const table=`<table class="cl-res" style="margin-top:10px;">
-    <thead><tr><th style="text-align:left;">Flying day</th><th>Without CBE</th><th>With CBE</th><th>Saved</th><th></th></tr></thead>
+    <thead><tr><th style="text-align:left;">Flying day</th><th class="hab">+1000 lbs HABIT<span>(simulated)</span></th><th>Without CBE</th><th>With CBE</th><th>Saved</th><th></th></tr></thead>
     <tbody>${rowsHtml}</tbody>
-    <tbody><tr class="total"><td>Total (${hist.length} day${hist.length!==1?'s':''})</td><td class="non">€${clEur(nonV.reduce((a,b)=>a+b,0))}</td><td class="cbe">€${clEur(cbeV.reduce((a,b)=>a+b,0))}</td><td class="saved">€${clEur(totalSaved)}</td><td></td></tr></tbody>
+    <tbody><tr class="total"><td>Total (${hist.length} day${hist.length!==1?'s':''})</td><td class="hab">${habPts.length?'€'+clEur(habPts.reduce((a,x)=>a+x[0],0)):'–'}</td><td class="non">€${clEur(nonV.reduce((a,b)=>a+b,0))}</td><td class="cbe">€${clEur(cbeV.reduce((a,b)=>a+b,0))}</td><td class="saved">€${clEur(totalSaved)}</td><td></td></tr></tbody>
   </table>`;
-  wrap.querySelectorAll('svg,table').forEach(n=>n.remove());
-  wrap.insertAdjacentHTML('beforeend', svg+table);
+  // habit line: only over days that have a habit value, compared with the same days Without CBE
+  const habMore=habPts.reduce((a,[v,i])=>a+(v-nonV[i]),0);
+  const habLine=habPts.length?`<div class="cl-habline">🔁 <b>+1000 lbs habit: €${clEur(habMore)} more</b> in ${habPts.length} day${habPts.length!==1?'s':''}</div>`:'';
+  wrap.querySelectorAll('svg,table,.cl-habline').forEach(n=>n.remove());
+  wrap.insertAdjacentHTML('beforeend', svg+table+habLine);
 }
 function clDeleteHistDay(date){
   const hist=clLoadHistory().filter(h=>h.date!==date);
@@ -6094,7 +6268,21 @@ function pick(idx){
   if(ch.p>0){rft.textContent=`+${ch.p} PTS!`;rft.style.color='#0f8';}else if(ch.p<0){rft.textContent=`${ch.p} PTS`;rft.style.color='#f44';}else if(goodChoice){rft.textContent='✓ DONE!';rft.style.color='#0f8';}else{rft.textContent='OK';rft.style.color='#aaa';}
   rfs.textContent=ch.l;rfp.classList.add('show');G.phase='result';G.resTimer=20;
   // If we were in "fix previous" mode, return to the task we interrupted (and its scene position)
-  if(G.pendingTask){const pt=G.pendingTask,pwx=G.pendingWorldX;G.pendingTask=null;G.pendingWorldX=null;rfp.classList.remove('show');G.phase='popup';if(pwx!=null){G.worldX=pwx;G.playerY=getPilotY();}setTimeout(()=>{G.curTask=pt;showPopup(pt);},260);}
+  resumePendingTask();
+}
+// 15 Oct 2026: after BACK ("fix previous"), return to the question that was interrupted.
+// Before, only pick() did this — the flight-pack CONTINUE, the recommendations CONTINUE and
+// the number entries didn't, so the game walked on, asked the interrupted question normally,
+// and then "returned" to it a second time after the next answer (crew briefing asked twice).
+// A question that has already been answered in the meantime is never asked again.
+function resumePendingTask(){
+  if(!G.pendingTask) return;
+  const pt=G.pendingTask,pwx=G.pendingWorldX;
+  G.pendingTask=null;G.pendingWorldX=null;
+  if(G.done.has(pt.id)) return;
+  document.getElementById('rfp').classList.remove('show');G.phase='popup';
+  if(pwx!=null){G.worldX=pwx;G.playerY=getPilotY();}
+  setTimeout(()=>{G.curTask=pt;showPopup(pt);},260);
 }
 function pickNum(){
   const el=document.getElementById('pop-numin');
@@ -6110,6 +6298,7 @@ function pickNum(){
   const rft=document.getElementById('rft'),rfs=document.getElementById('rfs'),rfp=document.getElementById('rfp');
   rft.textContent='LOGGED';rft.style.color='#aaa';
   rfs.textContent=val+' lbs';rfp.classList.add('show');G.phase='result';G.resTimer=20;
+  resumePendingTask();
 }
 // ═══ FLIGHT-PACK PII FILTER ════════════════════════════════════════
 // Runs entirely client-side (in the browser) BEFORE a PDF is stored locally or sent to
@@ -6663,7 +6852,7 @@ async function autoTranscribeTeclog(){
   const statusEl=document.getElementById('autoTranscribeTeclogStatus');
   const btn=document.getElementById('autoTranscribeTeclogBtn');
   const list=CL_STATE.uploads.teclog||[];
-  if(list.length===0){ if(statusEl)statusEl.textContent='Attach at least one Teclog photo or PDF first.'; return; }
+  if(list.length===0){ if(statusEl)statusEl.textContent='Attach at least one Teclog photo or PDF first.'; return false; }
   const dateISO=clDateToISO(CL_STATE.date)||clLocalISO();
   if(btn){btn.disabled=true;btn.textContent='🤖 Reading…';}
   if(statusEl){statusEl.textContent='🤖 Reading '+list.length+' Teclog file(s) with Claude…';statusEl.style.color='#9fc8ff';}
@@ -6706,9 +6895,12 @@ async function autoTranscribeTeclog(){
     })};
     saveDynamicKnownDay(dateISO,mergedDay);
     clLoadTranscribed(); // pulls the merged figures straight into the open Cost Ledger view
-    if(statusEl){statusEl.textContent='✅ Matched actual times/fuel into '+mergedCount+' of '+existingDay.legs.length+' leg(s) for '+dateISO+'.'+(swapNotes.length?' ↔ Corrected swapped figures (fuel can\'t increase while taxiing): '+swapNotes.join('; ')+'.':'');statusEl.style.color='#7df59a';}
+    const missing=existingDay.legs.filter(leg=>!result.legs.some(rl=>rl.from===leg.from&&rl.to===leg.to)).map(l=>l.from+'→'+l.to);
+    if(statusEl){statusEl.textContent=(missing.length?'⚠ ':'✅ ')+'Matched actual times/fuel into '+mergedCount+' of '+existingDay.legs.length+' leg(s) for '+dateISO+'.'+(missing.length?' Not found on the Teclog photo(s): '+missing.join(', ')+' — attach the page with that leg, then tap 🔄 RE-READ TECLOG.':'')+(swapNotes.length?' ↔ Corrected swapped figures (fuel can\'t increase while taxiing): '+swapNotes.join('; ')+'.':'');statusEl.style.color=missing.length?'#ffb84d':'#7df59a';}
+    return true;
   }catch(e){
     if(statusEl){statusEl.innerHTML='⚠ Could not read the Teclog: '+String(e.message).replace(/</g,'&lt;')+' — <span onclick="autoTranscribeTeclog()" style="text-decoration:underline;cursor:pointer;color:#9fc8ff;">try again</span>';statusEl.style.color='#ff9d7d';}
+    return false;
   }finally{
     if(btn){btn.disabled=false;btn.textContent='🤖 Read Teclog with Claude';}
   }
@@ -6795,6 +6987,7 @@ function pickFileUpload(){
   const rft=document.getElementById('rft'),rfs=document.getElementById('rfs'),rfp=document.getElementById('rfp');
   rft.textContent='LOGGED';rft.style.color='#aaa';
   rfs.textContent=count>0?(count+' file(s) attached'):'Skipped';rfp.classList.add('show');G.phase='result';G.resTimer=20;
+  resumePendingTask();
 }
 // Non-scoring: a read-and-continue step showing whatever's been transcribed for today's
 // date (if anything yet) — either hand-verified in CL_KNOWN_DAYS, or from tapping
@@ -6809,6 +7002,7 @@ function pickInfoDisplay(){
   const rft=document.getElementById('rft'),rfs=document.getElementById('rfs'),rfp=document.getElementById('rfp');
   rft.textContent='OK';rft.style.color='#aaa';
   rfs.textContent='Reviewed';rfp.classList.add('show');G.phase='result';G.resTimer=20;
+  resumePendingTask();
 }
 
 let lastT=0;
@@ -7028,6 +7222,7 @@ function openFlightLog(){
     d.personalLog.push(Object.assign({},entry,{totalTime:flightLog.totalTime,legNum:flightLog.legNum,pax:flightLog.pax,timestamp:Date.now()}));
     // remember any new crew name
     if(entry.crew){d.crewNames=d.crewNames||[];if(!d.crewNames.includes(entry.crew))d.crewNames.unshift(entry.crew);}
+    crewBackfill(d); // 13 Oct 2026: put the other pilot's name on the flight itself too
     saveData(d);
     openCostPrompt(entry);
   };
@@ -7809,7 +8004,7 @@ function exportPDF(style,includeCBE,range){
     document.addEventListener(ev,unlock,{passive:true});
   });
 })();
-initStorage().then(()=>showDashboard());
+initStorage().then(()=>{ try{ if(crewBackfill(DB)) saveData(DB); }catch(e){} showDashboard(); });
 
 /* ===== EMBEDDED PERSONAL FLIGHT LOG MODULE (isolated) ===== */
 window.FlightLog = (function(){
