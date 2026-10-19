@@ -3099,8 +3099,42 @@ function clLoadTranscribed(){
       toiletChoice:prev.toiletChoice!=null?prev.toiletChoice:null,
       waterChoice:prev.waterChoice!=null?prev.waterChoice:null};
   });
+  clDropUnflownLegs(dateStr);
   clSaveState(); clRenderStops(); clCompute(); clRenderLegs();
-  return {ok:true,message:'📋 Teclog/OFP: filled in prices and OFP figures for '+dateStr+'.'};
+  return {ok:true,message:'📋 Teclog/OFP: filled in prices and OFP figures for '+dateStr+'.'+(CL_STATE.notFlown&&CL_STATE.notFlown.length?' ✈ Not flown: '+CL_STATE.notFlown.map(x=>x.from+'→'+x.to+' ('+x.reason+')').join(', ')+' — not counted.':'')};
+}
+// 19 Oct 2026 (Cem): a leg that's in the flight pack but was never played in the game (cancelled
+// after landing, e.g. LFPB→LLBG flown, LLBG→LGAV cancelled — night stop) is NOT counted: no APU,
+// taxi, toilet/water, tankering or habit for it, and the day ends at the last flown leg (that
+// airport becomes the postflight stop). If the pilot answered "day finished" on the last played
+// leg, the rest is "cancelled"; otherwise "not flown yet" (counted automatically once played).
+const CL_LAST_ONLY_TASKS=['apu_post40','ho_send','clean_ac','transp_ah','crew_debrief','late_checkout'];
+function clDropUnflownLegs(dateStr){
+  CL_STATE.notFlown=[];
+  let data; try{ data=loadData(); }catch(e){ return; }
+  const played=(data.sectors||[]).filter(x=>!x.manual&&clDateToISO(x.date)===dateStr)
+    .sort((a,b)=>(a.legNum||0)-(b.legNum||0)||(a.timestamp||0)-(b.timestamp||0));
+  if(!played.length) return; // nothing played yet for this day — keep the plan as it is
+  const pool=played.map(p=>({dep:p.dep,arr:p.arr,used:false}));
+  const keep=[], drop=[];
+  CL_STATE.legs.forEach(l=>{
+    const m=pool.find(p=>!p.used&&p.dep===l.from&&p.arr===l.to);
+    if(m){ m.used=true; keep.push(l); } else drop.push(l);
+  });
+  if(!drop.length||!keep.length) return;
+  const last=played[played.length-1];
+  const finished=last.dayFinished===true||(last.dayFinished==null&&(last.choices||[]).some(c=>CL_LAST_ONLY_TASKS.includes(c.task)));
+  CL_STATE.notFlown=drop.map(l=>({from:l.from,to:l.to,reason:finished?'cancelled':'not flown yet'}));
+  // rebuild the stop chain from the flown legs only
+  const oldStops=CL_STATE.stops, stops=[];
+  keep.forEach(l=>{
+    const dep=oldStops[l.depStop], arr=oldStops[l.arrStop];
+    if(!stops.length||stops[stops.length-1].airport!==l.from) stops.push({...dep});
+    l.depStop=stops.length-1;
+    stops.push({...arr}); l.arrStop=stops.length-1;
+  });
+  stops.forEach((st,i)=>{ st.phase=i===0?'preflight':(i===stops.length-1?'postflight':'turnaround'); });
+  CL_STATE.legs=keep; CL_STATE.stops=stops;
 }
 function clLoadState(){
   try{ const raw=localStorage.getItem('cbe_cost_ledger_day'); return raw?JSON.parse(raw):clDefaultState(); }
@@ -3841,7 +3875,7 @@ function clUpdStop(i,key,val){ CL_STATE.stops[i][key]=Number(val); clSaveState()
 
 function clRenderLegs(){
   if(CL_HEADLESS)return;
-  if(!CL_STATE.legs.length){ document.getElementById('cl-legsWrap').innerHTML='<div class="cl-empty">No legs loaded for this date yet.</div>'; return; }
+  if(!CL_STATE.legs.length){ document.getElementById('cl-legsWrap').innerHTML='<div class="cl-empty">No legs loaded for this date yet.</div>'; clRenderNotFlown(); return; }
   document.getElementById('cl-legsWrap').innerHTML=CL_STATE.legs.map((l,i)=>`
     <div class="cl-card">
       <div class="cl-card-h"><span>Leg ${i+1} — ${l.from} → ${l.to}</span><span class="tag">dep €${CL_STATE.stops[l.depStop]?.fuelPrice??'-'} / arr €${CL_STATE.stops[l.arrStop]?.fuelPrice??'-'} per Ltr</span></div>
@@ -3876,6 +3910,11 @@ function clRenderLegs(){
       </div>
     </div>
   `).join('');
+  clRenderNotFlown();
+}
+function clRenderNotFlown(){
+  const w=document.getElementById('cl-legsWrap'); if(!w||CL_HEADLESS)return;
+  (CL_STATE.notFlown||[]).forEach(x=>w.insertAdjacentHTML('beforeend',`<div class="cl-card" style="opacity:.55;border-style:dashed;"><div class="cl-card-h"><span>${x.from} → ${x.to}</span><span class="tag">${x.reason==='cancelled'?'CANCELLED':'NOT FLOWN YET'}</span></div><div style="font-size:11px;color:#9fb0bd;">✈ ${x.reason==='cancelled'?'Cancelled — day finished before this leg.':'Not played in the game yet — counted automatically once flown.'} Not counted in any cost.</div></div>`));
 }
 function clUpdLeg(i,key,val){ CL_STATE.legs[i][key]=(key.includes('Fuel')||key==='refuelQty'||key==='ofpTotal'||key==='ofpSavingsPerKlbs'||key==='burnAdjPer1000')?Number(val):val; clSaveState(); clCompute(); clRenderLegs(); }
 // note: tOFuel/landingFuel already match key.includes('Fuel')
@@ -6032,6 +6071,11 @@ function buildRecommendationHTML(includeDisclaimer=true){
   if(day&&Array.isArray(day.stops)&&day.stops.length){
     let recRows='';
     if(Array.isArray(day.legs)&&day.legs.length){
+      // 19 Oct 2026 (Cem): "Toilet/Water 1st service FREE" was ignored here — LFPB showed €90 and
+      // pointed to LLBG €80 as cheaper, while the cost calculation correctly counts LFPB as €0.
+      // Same rule as the calculation: the first service at a stop is free once per day; it's used
+      // up when it's the cheaper choice on a leg (assuming the pilot follows the recommendation).
+      const freeUsed={toilet:new Set(),water:new Set()};
       recRows=day.legs.map((l,i)=>{
         const dep=day.stops[i],arr=day.stops[i+1];
         if(!dep||!arr)return '';
@@ -6045,12 +6089,21 @@ function buildRecommendationHTML(includeDisclaimer=true){
           const cheaper=av<dv?arr.airport:dv<av?dep.airport:null;
           return `${icon} ${dep.airport} €${dv}${unit} · ${arr.airport} €${av}${unit}`+(cheaper?` <span style="color:#7de8b8;">(cheaper: ${cheaper})</span>`:'');
         };
+        const svcRow=(icon,kind)=>{
+          const p=(st,idx)=>{ const full=Number(st[kind+'Price'])||0, free=clFirstFree(st,kind)&&!freeUsed[kind].has(idx); return {v:free?0:full,full,free}; };
+          const d=p(dep,i), a=p(arr,i+1);
+          const txt=(st,x)=>x.free?`${st.airport} <b style="color:#8fe8c4;">1st FREE</b> (then €${x.full})`:`${st.airport} €${x.v}`;
+          const cheaper=a.v<d.v?arr.airport:d.v<a.v?dep.airport:null;
+          if(cheaper===dep.airport&&d.free) freeUsed[kind].add(i);
+          if(cheaper===arr.airport&&a.free) freeUsed[kind].add(i+1);
+          return `${icon} ${txt(dep,d)} · ${txt(arr,a)}`+(cheaper?` <span style="color:#7de8b8;">(cheaper: ${cheaper})</span>`:'');
+        };
         return `<div style="margin-bottom:10px;padding-top:8px;border-top:1px solid #24313c;">
           <div style="color:#ffd400;margin-bottom:3px;"><b>${l.from} → ${l.to}</b></div>
           <div>⛽ ${fuelLine}</div>
           <div style="color:#9fb8c8;">${row('⛽','/Ltr',dep.fuelPrice,arr.fuelPrice)}</div>
-          <div style="color:#9fb8c8;">${row('🚾','',dep.toiletPrice,arr.toiletPrice)}</div>
-          <div style="color:#9fb8c8;">${row('💦','',dep.waterPrice,arr.waterPrice)}</div>
+          <div style="color:#9fb8c8;">${svcRow('🚾','toilet')}</div>
+          <div style="color:#9fb8c8;">${svcRow('💦','water')}</div>
           <div style="color:#9fb8c8;">${row('🔌','/hr',dep.gpuPrice,arr.gpuPrice)}</div>
         </div>`;
       }).join('');
@@ -6964,8 +7017,10 @@ async function autoTranscribeTeclog(){
     })};
     saveDynamicKnownDay(dateISO,mergedDay);
     clLoadTranscribed(); // pulls the merged figures straight into the open Cost Ledger view
-    const missing=existingDay.legs.filter(leg=>!result.legs.some(rl=>rl.from===leg.from&&rl.to===leg.to)).map(l=>l.from+'→'+l.to);
-    if(statusEl){statusEl.textContent=(missing.length?'⚠ ':'✅ ')+'Matched actual times/fuel into '+mergedCount+' of '+existingDay.legs.length+' leg(s) for '+dateISO+'.'+(missing.length?' Not found on the Teclog photo(s): '+missing.join(', ')+' — attach the page with that leg, then tap 🔄 RE-READ TECLOG.':'')+(swapNotes.length?' ↔ Corrected swapped figures (fuel can\'t increase while taxiing): '+swapNotes.join('; ')+'.':'');statusEl.style.color=missing.length?'#ffb84d':'#7df59a';}
+    const notFlown=new Set((CL_STATE.notFlown||[]).map(x=>x.from+'→'+x.to));
+    const expected=existingDay.legs.filter(leg=>!notFlown.has(leg.from+'→'+leg.to));
+    const missing=expected.filter(leg=>!result.legs.some(rl=>rl.from===leg.from&&rl.to===leg.to)).map(l=>l.from+'→'+l.to);
+    if(statusEl){statusEl.textContent=(missing.length?'⚠ ':'✅ ')+'Matched actual times/fuel into '+Math.min(mergedCount,expected.length)+' of '+expected.length+' flown leg(s) for '+dateISO+'.'+(notFlown.size?' ('+[...notFlown].join(', ')+' not flown — not needed.)':'')+(missing.length?' Not found on the Teclog photo(s): '+missing.join(', ')+' — attach the page with that leg, then tap 🔄 RE-READ TECLOG.':'')+(swapNotes.length?' ↔ Corrected swapped figures (fuel can\'t increase while taxiing): '+swapNotes.join('; ')+'.':'');statusEl.style.color=missing.length?'#ffb84d':'#7df59a';}
     return true;
   }catch(e){
     if(statusEl){statusEl.innerHTML='⚠ Could not read the Teclog: '+String(e.message).replace(/</g,'&lt;')+' — <span onclick="autoTranscribeTeclog()" style="text-decoration:underline;cursor:pointer;color:#9fc8ff;">try again</span>';statusEl.style.color='#ff9d7d';}
@@ -7262,7 +7317,7 @@ function finishFlight(){
   let prevBestCBE=null,prevBestScore=null;
   data.sectors.forEach(s=>{if(prevBestCBE===null||s.cbeIndex>prevBestCBE)prevBestCBE=s.cbeIndex;if(prevBestScore===null||s.score>prevBestScore)prevBestScore=s.score;});
   flightLog._newRecord = (prevBestCBE===null||cbeIdx>prevBestCBE)||(prevBestScore===null||combined>prevBestScore);
-  const pushedSector={dep:flightLog.dep,arr:flightLog.arr,date:flightLog.date,depTime:flightLog.depTime,arrTime:flightLog.arrTime,ac:flightLog.acType,reg:flightLog.reg,totalTime:flightLog.totalTime,pax:flightLog.pax,pf:flightLog.pf,legNum:flightLog.legNum,takeoverFuel:flightLog.takeoverFuel!=null?flightLog.takeoverFuel:null,score:combined,rawScore:raw,tasks,cbeIndex:cbeIdx,perfect:isPerfect,training:!!flightLog.isTraining,trainBonus:trainBonus,playMs:G.playMs||0,monthKey:flightLog.monthKey,timestamp:Date.now(),choices:G.choices.map(ch=>({task:ch.task,pts:ch.pts}))};
+  const pushedSector={dep:flightLog.dep,arr:flightLog.arr,date:flightLog.date,depTime:flightLog.depTime,arrTime:flightLog.arrTime,ac:flightLog.acType,reg:flightLog.reg,totalTime:flightLog.totalTime,pax:flightLog.pax,pf:flightLog.pf,legNum:flightLog.legNum,takeoverFuel:flightLog.takeoverFuel!=null?flightLog.takeoverFuel:null,score:combined,rawScore:raw,tasks,cbeIndex:cbeIdx,perfect:isPerfect,training:!!flightLog.isTraining,trainBonus:trainBonus,playMs:G.playMs||0,monthKey:flightLog.monthKey,dayFinished:(flightLog.dayFinished!=null?!!flightLog.dayFinished:null),timestamp:Date.now(),choices:G.choices.map(ch=>({task:ch.task,pts:ch.pts}))};
   // If this same leg/date was previously logged as a manual placeholder (e.g. by the 17 Jul
   // seed, before it was actually played in-game), drop that placeholder now — otherwise the
   // logbook shows a confusing duplicate "MANUAL" row alongside this real, scored one.
