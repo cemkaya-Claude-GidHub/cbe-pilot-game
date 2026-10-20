@@ -554,11 +554,19 @@ table.cl-res td{padding:5px 6px;border-bottom:1px solid #182430;text-align:right
 table.cl-res td:first-child{text-align:left;color:#dfe8ef;}
 table.cl-res td.non{color:#ffb84d;}table.cl-res td.cbe{color:#16c79a;}table.cl-res td.saved{color:#fff;font-weight:700;}
 table.cl-res tr.total td{border-top:1.5px solid #345;border-bottom:none;font-weight:700;padding-top:7px;}
+/* 20 Oct 2026 (Cem): "tap to open" links were too hidden — one clear button style everywhere */
+.tapbtn{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;background:#16324a;border:1.5px solid #4fb3ff;color:#e3f2ff;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit;box-shadow:0 0 0 3px rgba(79,179,255,.13);white-space:nowrap;}
+.tapbtn.red{background:#3a1820;border-color:#ff6b6b;color:#ffe0e0;box-shadow:0 0 0 3px rgba(255,107,107,.13);}
+.tapbtn.light{background:#1a3a6a;border-color:#1a3a6a;color:#fff;box-shadow:0 0 0 3px rgba(26,58,106,.15);}
+summary.tapsum{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;}
+summary.tapsum::-webkit-details-marker{display:none;}
+summary.tapsum::after{content:'🔍 OPEN';flex-shrink:0;background:#16324a;border:1.5px solid #4fb3ff;color:#e3f2ff;border-radius:8px;padding:5px 11px;font-size:10.5px;font-weight:800;letter-spacing:.4px;white-space:nowrap;}
+details[open]>summary.tapsum::after{content:'✕ CLOSE';}
 /* 18 Oct 2026: "+1000 lbs HABIT (simulated)" column — info only, never part of the bonus */
 table.cl-res th.hab{color:#ff6b6b;font-style:italic;text-align:center;background:rgba(255,107,107,.06);border-left:1px dashed rgba(255,107,107,.45);border-right:1px dashed rgba(255,107,107,.45);line-height:1.3;}
 table.cl-res th.hab span{display:block;text-transform:none;font-weight:600;}
 table.cl-res td.hab{color:#ff6b6b;font-style:italic;background:rgba(255,107,107,.06);border-left:1px dashed rgba(255,107,107,.35);border-right:1px dashed rgba(255,107,107,.35);}
-.cl-habline{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:8px;padding:8px 10px;border:1px dashed rgba(255,107,107,.55);border-radius:7px;background:rgba(255,107,107,.07);font-size:12px;color:#ffd0d0;line-height:1.5;}
+.cl-habline{display:flex;align-items:center;justify-content:space-between;gap:8px;white-space:nowrap;margin-top:8px;padding:8px 10px;border:1px dashed rgba(255,107,107,.55);border-radius:7px;background:rgba(255,107,107,.07);font-size:12px;color:#ffd0d0;line-height:1.5;}
 .cl-habline b{color:#ff6b6b;}
 .cl-tap{background:none;border:0;color:#9fc8ff;font-size:11px;padding:6px 8px;cursor:pointer;font-family:inherit;}
 .cl-popbox{background:#0d1b30;border:2px solid #335;border-radius:12px;padding:12px;max-width:620px;width:100%;margin:auto;color:#dce6f0;}
@@ -566,7 +574,7 @@ table.cl-res td.hab{color:#ff6b6b;font-style:italic;background:rgba(255,107,107,
 .cl-pophead button{background:#1a2a44;border:1px solid #335;color:#dce6f0;border-radius:6px;font-size:14px;width:34px;height:34px;cursor:pointer;}
 .cl-popbox table td{white-space:normal !important;}
 .cl-popbox table td:nth-child(3),.cl-popbox table td:nth-child(4),.cl-popbox table td:last-child{white-space:nowrap !important;}
-@media(max-width:520px){table.cl-res td:not(:first-child){white-space:nowrap;}.cl-tail{display:none;}.cl-habline{font-size:11px;padding:8px 8px;}table.cl-res td,table.cl-res th{padding:5px 3px;}table.cl-res td{font-size:9.5px;}.cl-popbox{padding:10px 8px;}.cl-popbox table td{font-size:9.5px;padding:5px 3px !important;}}
+@media(max-width:520px){.tapbtn{padding:6px 9px;font-size:11px;}table.cl-res td:not(:first-child){white-space:nowrap;}.cl-tail{display:none;}.cl-habline{font-size:11px;padding:8px 8px;}table.cl-res td,table.cl-res th{padding:5px 3px;}table.cl-res td{font-size:9.5px;}.cl-popbox{padding:10px 8px;}.cl-popbox table td{font-size:9.5px;padding:5px 3px !important;}}
 .cl-btn{font-weight:700;letter-spacing:.03em;text-transform:uppercase;font-size:11px;background:#0c3a35;border:1px solid #16c79a;color:#16c79a;border-radius:6px;padding:9px 12px;cursor:pointer;width:100%;}
 .cl-btn:disabled{background:#152230;border-color:#2a3a4a;color:#5a6b7a;cursor:not-allowed;}
 .fp-upload-wrap.fp-calm{opacity:.5;filter:grayscale(.5);transition:opacity .2s ease,filter .2s ease;}
@@ -683,7 +691,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
   <div class="pf-modal">
     <div class="pf-head"><h3>📋 LIFETIME BASELINE</h3><button class="pf-close" onclick="pfClose('pfBaselineModal')">✕</button></div>
     <div class="pf-body">
-      <div class="pf-hint" style="margin-bottom:10px;">Enter your logbook totals up to the day you started this app. Sectors you log here are tracked separately and added on top of these numbers in your CV / official totals — they do not change your CBE score.</div>
+      <div class="pf-hint" style="margin-bottom:10px;">Enter the totals of your previous logbook <b id="pfb_upto">up to the day before your first flight in this logbook</b>. Every flight you log here is added on top automatically (landings only when you were Pilot Flying) — the dashboard and your CV always show the current totals. It does not change your CBE score.</div>
       <div class="pf-div">Total Time &amp; Landings</div>
       <div class="pf-row">
         <div class="pf-g"><label>Total Time of Flight</label><input id="pfb_totaltime" placeholder="e.g. 6366:01"></div>
@@ -707,6 +715,15 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <button class="pf-btn cancel" onclick="pfClose('pfBaselineModal')">Cancel</button>
       <button class="pf-btn save" onclick="pfSaveBaseline()">Save Baseline</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== 20 Oct 2026: Lifetime logbook details pop-up ===== -->
+<div class="pf-backdrop" id="lbPopModal" onclick="if(event.target===this)pfClose('lbPopModal')">
+  <div class="pf-modal">
+    <div class="pf-head"><h3>📋 LIFETIME LOGBOOK</h3><button class="pf-close" onclick="pfClose('lbPopModal')">✕</button></div>
+    <div class="pf-body"><div id="lbPopBody"></div>
+      <div style="font-size:10px;color:#888;margin-top:8px;">Not part of the CBE score. To change the brought-forward totals, tap "Lifetime Baseline" on the dashboard.</div></div>
   </div>
 </div>
 
@@ -746,6 +763,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div class="pf-row">
         <div class="pf-g" style="flex-direction:row;align-items:center;gap:6px;"><input type="checkbox" id="qf_pf" style="width:18px;height:18px;"><label style="font-size:11px;">Pilot Flying</label></div>
         <div class="pf-g"><label>Rules</label><select id="qf_rules" style="padding:6px 7px;font-size:11px;"><option value="IFR">IFR</option><option value="VFR">VFR</option></select></div>
+        <div class="pf-g"><label>Function</label><select id="qf_function" style="padding:6px 7px;font-size:11px;"><option>PIC</option><option>COPI</option><option>PICUS</option><option>DUAL</option><option>PIC + INSTRUCTOR</option></select></div>
         <div class="pf-g" style="flex-direction:row;align-items:center;gap:6px;"><input type="checkbox" id="qf_training" style="width:18px;height:18px;"><label style="font-size:11px;">🎓 Instructing</label></div>
       </div>
       <div class="pf-row"><div class="pf-g"><label>Remarks</label><input id="qf_remarks" placeholder="optional"></div></div>
@@ -1058,7 +1076,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div id="cl-trendWrap"><div class="cl-empty" id="cl-trendEmpty">No days saved yet — save today's flying day above to start the trend.</div></div>
 
       <details style="margin-top:14px;">
-        <summary style="cursor:pointer;font-size:10px;color:#7f92a3;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">🔧 Assumptions (editable) <span id="ac-assum-badge" style="font-weight:400;"></span></summary>
+        <summary class="tapsum" style="font-size:10px;color:#7f92a3;text-transform:uppercase;letter-spacing:.06em;font-weight:700;"><span>🔧 Assumptions (editable) <span id="ac-assum-badge" style="font-weight:400;"></span></span></summary>
         <div class="cl-grid c4" style="margin-top:8px;">
           <div class="cl-fld"><label title="Locked — set in code, not editable here">APU (lbs/hr) 🔒</label><input type="number" id="cl-setApu" value="150" readonly style="background:#1c2530;cursor:not-allowed;"></div>
           <div class="cl-fld"><label title="Locked — set in code, not editable here">Idle, 1-eng (lbs/hr) 🔒</label><input type="number" id="cl-setIdle" value="350" readonly style="background:#1c2530;cursor:not-allowed;"></div>
@@ -1098,7 +1116,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div id="tb-convert" style="background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:8px;padding:10px;"></div>
       <div id="tb-bank" style="background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:8px;padding:10px;margin-top:8px;"></div>
       <details style="margin-top:8px;">
-        <summary style="cursor:pointer;font-size:10px;color:#9fb8c8;font-weight:700;">ⓘ HOW THE TIME BANK WORKS — tap to read</summary>
+        <summary class="tapsum" style="font-size:11px;color:#9fb8c8;font-weight:700;">ⓘ HOW THE TIME BANK WORKS</summary>
         <div style="font-size:8.5px;color:#6f8798;line-height:1.6;padding:7px 10px;margin-top:6px;background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:6px;">
           After a month has ended, you choose how much of that month's bonus you take as <b style="color:#16c79a;">money</b> and how much as <b style="color:#ffd76b;">free days</b>. It starts at 0 days — everything is money unless you choose otherwise. 1 free day costs <b>€600 (PIC)</b> or <b>€300 (SIC)</b> — 1.5× the company's own extra duty day rate. Only whole days; the rest is always paid as money. The day value is fixed the moment you convert and never changes afterwards.<br/><br/>
           The bank holds max <b>17 days</b>. Days can build up over several months, so a long block (e.g. a vacation) is possible. Days expire after <b>12 months</b> — unused days are paid out as money. Free days can only be taken at the <b>start or end</b> of the 17-day rotation, any number of days. Requests must be in by the <b>15th</b> of the month before the rotation.<br/><br/>
@@ -1110,7 +1128,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div id="pb-dayList" style="margin-bottom:10px;"></div>
 
       <details style="margin-top:14px;">
-        <summary style="cursor:pointer;font-size:10px;color:#9fb8c8;font-weight:700;">ⓘ HOW THIS BONUS WORKS — tap to read</summary>
+        <summary class="tapsum" style="font-size:11px;color:#9fb8c8;font-weight:700;">ⓘ HOW THIS BONUS WORKS</summary>
         <div style="font-size:8.5px;color:#6f8798;line-height:1.6;padding:7px 10px;margin-top:6px;background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:6px;">
           A month <b style="color:#ffd76b;">qualifies</b> the moment you either beat last month by +1% <i>or</i> hold Elite Tier that month — same "met" flag the CBE Index table already uses, nothing new to track. In a qualifying month you get two things: <b style="color:#16c79a;">10% of the real euros you saved</b> (from the Cost Ledger, uncapped — the more you genuinely save, the more you earn, always), plus a <b style="color:#e0a0f0;">floor bonus</b> — up to 10% of that month's salary — that rewards the parts of CBE that don't show up in fuel numbers at all. The floor never pushes the total past what was actually saved: in a quiet month it shrinks to fit, so the company can never pay out more than it saved. In a non-qualifying month, only the 10%-of-savings piece applies — no floor.<br/><br/><b style="color:#9fb8c8;">Flying with other pilots?</b> A saving on a shared flight was made by the whole crew together, not one person alone — so <b style="color:#ffd76b;">crew size</b> (④ below) divides the 10%-of-savings piece evenly between everyone flying that leg (2 pilots → 5% each, 3 → 3.3% each, and so on), so the company's total payout for that saving always stays at 10%, never more, no matter how many pilots were on board. The floor bonus is untouched by this — it's tied to your own salary and your own performance, not shared.
         </div>
@@ -2110,7 +2128,7 @@ async function clApplyRestoredBackup(d){
     fuelBank:{...(d.fuelBank||{}),...(DB.fuelBank||{})},
     // 13 Oct 2026: the personal logbook entries (other pilot, function, remarks) are kept too
     personalLog:(()=>{ const seen=new Set(); return [...(DB.personalLog||[]),...(d.personalLog||[])].filter(e=>{ const k=(e.timestamp||'')+'|'+e.date+'|'+e.dep+'|'+e.arr; if(seen.has(k))return false; seen.add(k); return true; }); })()};
-  crewBackfill(DB);
+  crewBackfill(DB); scoreMigrate1020(DB);
   await saveData(DB);
   if(d.knownDays&&typeof d.knownDays==='object'){
     const cur=loadDynamicKnownDays();
@@ -2284,6 +2302,30 @@ function clNormLegTimes(l){ if(!l) return l; ['offBlock','tO','landing','onBlock
 // logbook PDF, search and flight list read it from the flight (DB.sectors) — so every flight
 // showed "SELF". This copies each personalLog name onto its matching flight (same date + route,
 // closest in time). A name already on a flight (e.g. typed in via Edit) is never overwritten.
+// 20 Oct 2026: re-score every played sector once for the new single turnaround question.
+// Old answers: turn_crew 0 (no crew delay) → "on time" +30; turn_crew -20 (crew delay) stays -20;
+// turn_atc always scored 0 and can't tell an ATC delay apart, so it's simply dropped.
+// Two old questions become one, so the sector's task count drops by one.
+function scoreMigrate1020(d){
+  let changed=false;
+  (d.sectors||[]).forEach(s=>{
+    if(!s||s.manual||s.v1020||!Array.isArray(s.choices))return;
+    const crew=s.choices.find(c=>c.task==='turn_crew'), atc=s.choices.find(c=>c.task==='turn_atc');
+    s.v1020=true; changed=true;
+    if(!crew&&!atc)return;
+    const oldPts=(crew?(crew.pts||0):0)+(atc?(atc.pts||0):0);
+    const newPts=(crew&&crew.pts<0)?-20:30;
+    const delta=newPts-oldPts;
+    s.choices=s.choices.filter(c=>c.task!=='turn_crew'&&c.task!=='turn_atc');
+    s.choices.push({task:'turn_ontime',pts:newPts});
+    if(typeof s.tasks==='number'&&crew&&atc) s.tasks=Math.max(1,s.tasks-1);
+    if(s.training&&crew){ s.trainBonus=Math.max(0,Math.min(390,(s.trainBonus||0)+(crew.pts||0))); } // turn_crew was a training task, the new question isn't
+    s.rawScore=(s.rawScore!=null?s.rawScore:((s.score||0)-(s.trainBonus||0)))+delta;
+    s.score=s.rawScore+(s.trainBonus||0);
+    if(typeof s.tasks==='number'&&s.tasks>0) s.cbeIndex=parseFloat((s.score/s.tasks).toFixed(2));
+  });
+  return changed;
+}
 function crewBackfill(d){
   d=d||DB; let n=0;
   const secs=(d.sectors||[]).filter(s=>!s.manual);
@@ -2565,7 +2607,7 @@ function computeEliteTimeline(months){
 }
 
 // ═══ CBE-CIRCLE QUALIFICATION ═══
-const QUAL_SECTOR_SCORE=480;  // a sector qualifies if its (pure) total score >= this
+const QUAL_SECTOR_SCORE=450;  // a sector qualifies if its total score (training bonus included) >= this. 20 Oct 2026 (Cem): 480 → 450 — at 480 even Cem qualified on only 45% of his sectors
 const QUAL_MONTHS=6;          // trial window length
 const FLEET_BANDS={           // aircraft → endurance band → required qualifying sectors
   'Global 8000':'long','Global 7500':'long','Global 6000':'long','Global 5000':'long',
@@ -4477,7 +4519,7 @@ function clCompute(){
         else warnHtml+=note(`⚠ OFP and game differ (${c.from} → ${c.to}: OFP ≈ ${clSignedEur(c.ofpEur)}, game ${clSignedEur(c.gameEur,true)}) — the OFP uses other fuel prices than the Brief, or a reading is off. Check the Brief prices and the Teclog.`,'#ffd76a','#3a2e0a');
       });
       if(det){ CL_POP.cbe={title:'<span style="color:#ffd76a">⛽ FUEL TANKERING · WITH CBE</span>',body:det};
-        extra+=`<tr><td colspan="5" style="padding:0;border-bottom:1px solid #1d3a44;text-align:left;"><button class="cl-tap" onclick="clShowPop('cbe')">▸ Details (tap)</button></td></tr>`; }
+        extra+=`<tr><td colspan="5" style="padding:0;border-bottom:1px solid #1d3a44;text-align:left;"><div style="padding:7px 6px;"><button class="tapbtn" onclick="clShowPop('cbe')">🔍 DETAILS — fuel tankering</button></div></td></tr>`; }
       extra+=warnHtml;
     }
     const hab=(label==='Fuel tankering')?HB.eur:non;
@@ -4503,7 +4545,7 @@ function clCompute(){
         <tr><td colspan="5" style="${td}font-weight:800;border-top:1px solid #335;">Total</td><td style="${td}text-align:right;font-weight:800;color:#ff6b6b;">${clSignedEur(-HB.eur).replace('€','')}</td></tr></table></div>
         <div style="font-size:10px;color:#7d93a8;font-style:italic;padding:6px 8px;line-height:1.5;">No price difference: the 1000 lbs stay in the tanks and never replace a purchase. Only the extra burn costs.<br>Extra fuel for weather, ATC or delay is always the captain's call.`+(HB.missing.length?'<br>⚠ Not counted: '+HB.missing.join(' · '):'')+`</div>`;
       CL_POP.hab={title:'<span style="color:#ff6b6b">🔁 +1000 lbs HABIT (simulated)</span>',body};
-      hl.innerHTML=`<div class="cl-habline">🔁 <b>+1000 lbs habit: ${clSignedEur(HB.eur)} more</b> today <button class="cl-tap" style="color:#ffb0b0;padding:0 0 0 6px;" onclick="clShowPop('hab')">▸ Details (tap)</button></div>`;
+      hl.innerHTML=`<div class="cl-habline"><span style="overflow:hidden;text-overflow:ellipsis;">🔁 <b>+1000 lbs habit: ${clSignedEur(HB.eur)} more</b> today</span><button class="tapbtn red" onclick="clShowPop('hab')">🔍 DETAILS</button></div>`;
     } else hl.innerHTML='';
   }
   if(typeof clRenderWarnings==='function') clRenderWarnings(R);
@@ -4559,9 +4601,9 @@ function clRenderWarnings(R){
   if(warn.length) html+=`<div style="${css}background:#3a2e0a;border:1px solid #c9a04a;color:#ffd76a;"><b>⚠ Incomplete</b><br>${warn.join('<br>')}</div>`;
   if(checks.length) html+=`<div style="${css}background:#3a1414;border:1px solid #c94a4a;color:#ffb0b0;"><b>⚠ Teclog figures look wrong — please compare with your Journey Log</b><br>${checks.join('<br>')}</div>`;
   const used=legs.filter(l=>+l.offBlockFuel>0).map(l=>`${l.from}→${l.to}: ${l.offBlock||'?'}/${l.tO||'?'} → ${l.landing||'?'}/${l.onBlock||'?'} · fuel ${l.offBlockFuel}/${l.tOFuel||'?'} → ${l.landingFuel||'?'}/${l.onBlockFuel}`);
-  if(used.length) html+=`<details style="${css}background:#0f1f2e;border:1px solid #2a4a66;color:#9fc8ff;"><summary><b>Teclog figures used</b> (off-block/T-O → landing/on-block) — tap to compare</summary>${used.join('<br>')}${st.takeoverFuel?'<br>Takeover fuel: '+st.takeoverFuel+' lbs':''}</details>`;
+  if(used.length) html+=`<details style="${css}background:#0f1f2e;border:1px solid #2a4a66;color:#9fc8ff;"><summary class="tapsum"><span><b>Teclog figures used</b> (off-block/T-O → landing/on-block)</span></summary>${used.join('<br>')}${st.takeoverFuel?'<br>Takeover fuel: '+st.takeoverFuel+' lbs':''}</details>`;
   const ac=getAcAssumptions((typeof flightLog!=='undefined'&&flightLog&&flightLog.acType)||'Challenger 350');
-  html+=`<details style="${css}background:#121a22;border:1px solid #2a3a4a;color:#9fb0c0;"><summary><b>Assumed values</b> (not read from a document)${assum.length?' — '+assum.length+' for this day':''}</summary>${assum.length?assum.join('<br>')+'<br>':''}APU burn ${ac.apu} lbs/h · idle 1 engine ${ac.idle} lbs/h${ac.verified?'':' (CL350 values — not verified for this type)'} · fuel density 0.80 kg/L · normal pilot: APU 80 min per stop (max. real ground time), takes exactly the OFP fuel.</details>`;
+  html+=`<details style="${css}background:#121a22;border:1px solid #2a3a4a;color:#9fb0c0;"><summary class="tapsum"><span><b>Assumed values</b> (not read from a document)${assum.length?' — '+assum.length+' for this day':''}</span></summary>${assum.length?assum.join('<br>')+'<br>':''}APU burn ${ac.apu} lbs/h · idle 1 engine ${ac.idle} lbs/h${ac.verified?'':' (CL350 values — not verified for this type)'} · fuel density 0.80 kg/L · normal pilot: APU 80 min per stop (max. real ground time), takes exactly the OFP fuel.</details>`;
   box.innerHTML=html;
 }
 
@@ -4702,7 +4744,7 @@ function clDeleteHistDay(date){
 }
 
 // ═══ STATISTICS ═══
-const TASK_SHORT={transp_ha:'Transport H→A',movm_transport:'Movement msg (transport)',crew_brief:'Crew briefing',pf:'Pilot flying',movm_aircraft:'Movement msg (aircraft)',to_handover:'T/O handover msg',tire_pressure:'Tire pressure check',groundpow:'Ground power (GPU)',apu_pre:'APU before departure',fuel_tankering:'Fuel tankering',toilet_svc:'Toilet service',water_svc:'Water service',movm_pax30:'Movement msg (30 min)',pax_late:'PAX late',miss_slot_pax:'Slot missed (PAX)',miss_slot_crew:'Slot missed (crew)',passport_scan:'Passport scan',movm_offblocks:'Movement msg (off-blocks)',apu_early_off:'APU off early (taxi-out)',se_taxi_out:'Single-engine taxi out',movm_takeoff:'Movement msg (takeoff)',fuel_enroute:'Fuel saving enroute',flight_time:'Flight time reduced',non_sop:'Non-SOP operation',se_taxi_in:'Single-engine taxi in',apu_late_in:'APU late (taxi-in)',customer_happy:'Customer happy',fuel_trip:'Fuel saving (trip)',flight_time_total:'Fuel saving (trip+taxi)',flight_time_total_time:'Flight time (entire flight)',turn_atc:'Turnaround (ATC/pax)',turn_crew:'Turnaround (crew)',aog_support:'AOG recovery support',moc_forward:'MOC thinking forward',help_cleaning:'Cabin cleaning help',apu_post40:'APU off after last flight',ho_send:'Handover msg sent',clean_ac:'A/C cleaned',transp_ah:'Transport A→H',crew_debrief:'Crew debrief',dayops:'Flight ops maintained',late_checkout:'Late checkout'};
+const TASK_SHORT={transp_ha:'Transport H→A',movm_transport:'Movement msg (transport)',crew_brief:'Crew briefing',pf:'Pilot flying',movm_aircraft:'Movement msg (aircraft)',to_handover:'T/O handover msg',tire_pressure:'Tire pressure check',groundpow:'Ground power (GPU)',apu_pre:'APU before departure',fuel_tankering:'Fuel tankering',toilet_svc:'Toilet service',water_svc:'Water service',movm_pax30:'Movement msg (30 min)',pax_late:'PAX late',miss_slot_pax:'Slot missed (PAX)',miss_slot_crew:'Slot missed (crew)',passport_scan:'Passport scan',movm_offblocks:'Movement msg (off-blocks)',apu_early_off:'APU off early (taxi-out)',se_taxi_out:'Single-engine taxi out',movm_takeoff:'Movement msg (takeoff)',fuel_enroute:'Fuel saving enroute',flight_time:'Flight time reduced',non_sop:'Non-SOP operation',se_taxi_in:'Single-engine taxi in',apu_late_in:'APU late (taxi-in)',customer_happy:'Customer happy',fuel_trip:'Fuel saving (trip)',flight_time_total:'Fuel saving (trip+taxi)',flight_time_total_time:'Flight time (entire flight)',turn_atc:'Turnaround (ATC/pax)',turn_crew:'Turnaround (crew)',turn_ontime:'Turnaround on time',aog_support:'AOG recovery support',moc_forward:'MOC thinking forward',help_cleaning:'Cabin cleaning help',apu_post40:'APU off after last flight',ho_send:'Handover msg sent',clean_ac:'A/C cleaned',transp_ah:'Transport A→H',crew_debrief:'Crew debrief',dayops:'Flight ops maintained',late_checkout:'Late checkout'};
 function taskPhaseGroup(id){
   const t=TASKS.find(x=>x.id===id);const ph=t?t.phase:'';
   if(/TRANSPORT|COCKPIT|PRE-FLIGHT|BOARDING|DEPARTURE/.test(ph))return 'GROUND & PRE-FLIGHT';
@@ -5052,18 +5094,13 @@ function renderDashboard(){
     }).join('')}</table>`}
   </div>
   <div class="db-section" style="border-top:3px solid #1a3a6a;">
-    <div class="db-section-title">📋 LIFETIME LOGBOOK BASELINE (carried over, not part of CBE score)</div>
+    <div class="db-section-title">📋 LIFETIME LOGBOOK</div>
     ${(()=>{
-      const b=(DB.profile&&DB.profile.baselineTotals)||null;
-      if(!b||(!b.totaltime&&!(b.types&&b.types.length)))return '<div style="color:#bbb;font-size:11px;padding:4px 0;">Not set yet — tap "Lifetime Baseline" above to enter your logbook totals.</div>';
-      const rows=[['Total Time',b.totaltime],['Total Landings',b.landings],['IFR',b.ifr],['SE',b.se],['ME',b.me],['JET',b.jet],['PIC/PICUS',b.picsu]].filter(r=>r[1]);
-      const typeRows=(b.types||[]).map(t=>{
-        const dl=pfDaysUntil(t.validUntil);
-        const cls=dl===null?'':dl<0?'score-neg':dl<=60?'score-neg':'score-pos';
-        const exp=dl===null?'':dl<0?` · ⛔ expired ${Math.abs(dl)}d ago`:dl<=60?` · ⚠ expires in ${dl}d`:` · valid to ${t.validUntil}`;
-        return `<div class="db-row"><span class="lbl">${t.name}</span><span class="val ${cls}">${t.time||'—'} / ${t.landings||0} ldg<span style="font-size:9px;font-weight:400;">${exp}</span></span></div>`;
-      }).join('');
-      return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 18px;">${rows.map(r=>`<div class="db-row"><span class="lbl">${r[0]}</span><span class="val">${r[1]}</span></div>`).join('')}</div>${typeRows?`<div style="margin-top:8px;">${typeRows}</div>`:''}`;
+      let L; try{ L=lbTotals(); }catch(e){ return '<div style="color:#bbb;font-size:11px;">—</div>'; }
+      const t=L.rows[0], l=L.rows[1];
+      return `<div onclick="lbOpenPop()" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;cursor:pointer;padding:6px 2px;">
+        <span style="font-size:13px;color:#1a3a6a;"><b>${t.total}</b> · <b>${l.total}</b> landings${L.hasBaseline?'':' <span style="color:#b8860b;font-size:11px;">(brought forward not set)</span>'}</span>
+        <span class="tapbtn light">🔍 DETAILS</span></div>`;
     })()}
   </div>
   <div class="db-nav" style="display:flex;flex-direction:column;gap:8px;padding:12px 16px;background:#f8f8ff;border-top:2px solid #1a3a6a;">
@@ -5412,10 +5449,11 @@ const TASKS=[
    c:[{l:'YES ✓',p:50,i:'⛽',d:'+50!'},{l:'NO',p:0,i:'🔥',d:'Normal.'}]},
   {id:'flight_time_total_time',wx:3110,phase:'🛬 AFTER LANDING',icon:'📚',when:'every',note:'Destination time vs Teclog Air Time.',q:'FLIGHT TIME REDUCED ENTIRE FLIGHT — takeoff to landing (planned vs real)?',
    c:[{l:'YES ✓',p:50,i:'⏱️',d:'+50!'},{l:'NO',p:0,i:'🕐',d:'Normal.'}]},
-  {id:'turn_atc',wx:3144,phase:'🎡 TURNAROUND',icon:'🎡',when:'firstmid',q:'TURNAROUND DELAYED — Slots/pax/ATC?',
-   c:[{l:'NO ✓',p:0,i:'🟢',d:'Smooth!'},{l:'YES',p:0,i:'🔴',d:'Delay.'}]},
-  {id:'turn_crew',training:true,wx:3249,phase:'🎡 TURNAROUND',icon:'🎡',when:'firstmid',q:'TURNAROUND DELAYED — crew mis-management?',
-   c:[{l:'NO ✓',p:0,i:'🟢',d:'Good!'},{l:'YES',p:-20,i:'🔴',d:'-20!'}]},
+  // 20 Oct 2026 (Cem): the two turnaround questions (ATC/pax and crew) became ONE. An on-time or
+  // recovered turnaround now earns points — before, a perfect turnaround scored 0, so first and
+  // middle legs had little to earn. A delay that isn't the crew's fault stays 0 (no reward for luck).
+  {id:'turn_ontime',wx:3190,phase:'🎡 TURNAROUND',icon:'🎡',when:'firstmid',q:'TURNAROUND ON TIME?',
+   c:[{l:'ON TIME ✓',p:30,i:'🟢',d:'+30!'},{l:'DELAY RECOVERED',p:50,i:'💪',d:'+50!'},{l:'DELAYED — not our fault',p:0,i:'⏸️',d:'ATC / pax / slot'},{l:'DELAYED — crew',p:-20,i:'🔴',d:'-20!'}]},
   {id:'aog_support',wx:3354,phase:'⚙️ OPS',icon:'⚙️',when:'every',q:'AOG RECOVERY SUPPORT provided?',
    c:[{l:'YES ✓',p:30,i:'🔧',d:'+30!'},{l:'N/A',p:0,i:'🔧',d:'n/a'}]},
   {id:'moc_forward',wx:3459,phase:'⚙️ OPS',icon:'⚙️',when:'every',q:'MOC THINKING FORWARD?',
@@ -7630,15 +7668,16 @@ function exportPDF(style,includeCBE,range){
     if(/pa34|c421|c414|c310|seneca|multi/.test(n))return 'Multi Engine';
     return 'Jet';
   };
-  if(bt&&bt.types&&bt.types.length){
-    bt.types.forEach(t=>{
+  const LBT=lbTotals(); // 19 Oct 2026: current totals = brought forward + CBE logbook
+  if(LBT.typeRows.length){
+    LBT.typeRows.forEach(t=>{
       const dl=pfDaysUntil(t.validUntil);
       const exp=dl!=null?(dl<0?'  (EXPIRED)':dl<=60?'  (exp '+dl+'d)':''):'';
       acRows.push([
         v(catFor(t.name),MED),
         v((t.name||'-')+exp,DK,true),
         v(t.time||'-',DK),
-        v(String(t.landings||'-'),DK)
+        v(String(t.ldg||'-'),DK)
       ]);
     });
   }else{
@@ -7648,12 +7687,8 @@ function exportPDF(style,includeCBE,range){
 
   // Grand totals strip
   cy+=10;
-  if(bt&&(bt.totaltime||bt.landings)){
-    const tot=[
-      ['TOTAL TIME',bt.totaltime||'-'],['LANDINGS',String(bt.landings||'-')],
-      ['IFR',bt.ifr||'-'],['SE',bt.se||'-'],['ME',bt.me||'-'],
-      ['JET',bt.jet||'-'],['PIC / PICUS',bt.picsu||'-']
-    ];
+  if(LBT.hasBaseline||LBT.count){
+    const tot=LBT.rows.map(r=>[r.label.toUpperCase(),r.total]);
     const tw=contentW/tot.length;
     p.rect(M,cy,contentW,34,...ROW_HEAD);
     p.rect(M,cy,contentW,3,...GOLD);
@@ -7661,7 +7696,8 @@ function exportPDF(style,includeCBE,range){
       const tx=M+i*tw;
       if(i>0)p.line(tx,cy+3,tx,cy+34,...(isDark?[0.22,0.32,0.52]:[0.28,0.40,0.60]),0.4);
       const lw=p._width(t[0],5.5,true);p.text(tx+(tw-lw)/2,cy+15,5.5,t[0],...(isDark?[0.68,0.78,0.94]:[0.76,0.84,0.96]),true);
-      const vw=p._width(t[1],9.5,true);p.text(tx+(tw-vw)/2,cy+28,9.5,t[1],...WHITE,true);
+      let vs=9.5; while(vs>5.5&&p._width(t[1],vs,true)>tw-6) vs-=0.5; // fit "6345 h 30 min" into the column
+      const vw=p._width(t[1],vs,true);p.text(tx+(tw-vw)/2,cy+28,vs,t[1],...WHITE,true);
     });
     box(M,cy,contentW,34,GOLD,0.8);
     cy+=34;
@@ -8128,7 +8164,7 @@ function exportPDF(style,includeCBE,range){
     document.addEventListener(ev,unlock,{passive:true});
   });
 })();
-initStorage().then(()=>{ try{ if(crewBackfill(DB)) saveData(DB); }catch(e){} showDashboard(); });
+initStorage().then(()=>{ try{ const a=crewBackfill(DB), b=scoreMigrate1020(DB); if(a||b) saveData(DB); }catch(e){} showDashboard(); });
 
 /* ===== EMBEDDED PERSONAL FLIGHT LOG MODULE (isolated) ===== */
 window.FlightLog = (function(){
@@ -8505,6 +8541,78 @@ function pfAddTypeRow(name,time,landings,validUntil){
     <button class="pf-rm" onclick="this.parentNode.remove()">✕</button>`;
   wrap.appendChild(row);
 }
+// 19 Oct 2026 (Cem): the Lifetime Baseline is the pilot's OPENING BALANCE ("brought forward" from
+// his old logbook). Every flight in the CBE logbook is added on top automatically:
+// time → total (+ IFR if logged IFR, + PIC/PICUS if that function, + SE/ME/JET by aircraft type);
+// landing → +1 only when he was Pilot Flying. Per aircraft type the same (e.g. CL350).
+// The baseline covers everything BEFORE the first CBE logbook flight, so nothing counts twice.
+function lbParseHM(v){
+  if(v==null)return 0; const t=String(v).trim(); if(!t)return 0;
+  const m=t.match(/^(\d+)\s*[:h]\s*(\d{1,2})$/); if(m) return (+m[1])*60+(+m[2]);
+  const n=parseFloat(t.replace(',','.')); return isNaN(n)?0:Math.round(n*60);
+}
+function lbFmtHM(min){ min=Math.round(min||0); return Math.floor(min/60)+' h '+(min%60)+' min'; } // 20 Oct 2026 (Cem): "6345 h 30 min" everywhere — clearer than 6345:30
+function lbCat(name){
+  const n=(name||'').toLowerCase();
+  if(/dv20|diamond|c172|c152|pa28|pa38|mooney|da40|sr22|tb20|single/.test(n))return 'SE';
+  if(/pa34|c421|c414|c310|seneca|da42|multi/.test(n))return 'ME';
+  return 'JET'; // business jets: jet + multi engine
+}
+function lbTypeKey(name){
+  const raw=(name||'').toString().trim(); if(!raw)return '';
+  if(AC_CODE[raw]) return AC_CODE[raw];
+  const u=raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  for(const full in AC_CODE){ const code=AC_CODE[full];
+    if(full.toUpperCase().replace(/[^A-Z0-9]/g,'')===u||code===u||(u.length>code.length&&u.startsWith(code)&&/^\d+$/.test(u.slice(code.length)))) return code; }
+  return u;
+}
+function lbTotals(){
+  const b=(DB.profile&&DB.profile.baselineTotals)||{};
+  const sectors=(DB.sectors||[]).filter(x=>x&&x.dep&&x.arr);
+  const plog=DB.personalLog||[];
+  const add={tot:0,ldg:0,ifr:0,se:0,me:0,jet:0,pic:0}, types={}; let noPage=0, first=null;
+  sectors.forEach(x=>{
+    const iso=clDateToISO(x.date)||''; if(iso&&(!first||iso<first)) first=iso;
+    let mins=lbParseHM(x.totalTime), fn=x.function||'', rules=x.rules||'';
+    if(!x.manual){
+      const e=plog.filter(p=>p.date===x.date&&p.dep===x.dep&&p.arr===x.arr)
+        .sort((p,q)=>Math.abs((p.timestamp||0)-(x.timestamp||0))-Math.abs((q.timestamp||0)-(x.timestamp||0)))[0];
+      if(e){ fn=fn||e.function||''; rules=rules||e.rules||''; if(!mins) mins=lbParseHM(e.block); } else noPage++;
+    }
+    add.tot+=mins; if(x.pf) add.ldg++;
+    if(/^IFR$/i.test(rules)) add.ifr+=mins;
+    if(/(^|[^A-Z])PIC(US)?([^A-Z]|$)/.test(fn.toUpperCase())) add.pic+=mins;
+    const c=lbCat(x.acFull||x.ac); if(c==='SE') add.se+=mins; else { add.me+=mins; if(c==='JET') add.jet+=mins; }
+    const k=lbTypeKey(x.acFull||x.ac)||'?';
+    types[k]=types[k]||{time:0,ldg:0,name:acCode(x.acFull||x.ac)||k}; types[k].time+=mins; if(x.pf) types[k].ldg++;
+  });
+  const bf={tot:lbParseHM(b.totaltime),ldg:parseInt(b.landings)||0,ifr:lbParseHM(b.ifr),se:lbParseHM(b.se),me:lbParseHM(b.me),jet:lbParseHM(b.jet),pic:lbParseHM(b.picsu)};
+  const rows=[['Total Time','tot',true],['Landings','ldg',false],['IFR','ifr',true],['SE','se',true],['ME','me',true],['JET','jet',true],['PIC / PICUS','pic',true]]
+    .map(([label,k,hm])=>{ const f=v=>hm?lbFmtHM(v):String(v); return {label,key:k,bf:f(bf[k]),cbe:f(add[k]),total:f(bf[k]+add[k])}; });
+  const typeRows=[]; const seen=new Set();
+  (b.types||[]).forEach(t=>{ const k=lbTypeKey(t.name); const a=types[k]||{time:0,ldg:0}; seen.add(k);
+    typeRows.push({name:t.name,validUntil:t.validUntil,bfTime:lbFmtHM(lbParseHM(t.time)),bfLdg:parseInt(t.landings)||0,cbeTime:lbFmtHM(a.time),cbeLdg:a.ldg,
+      time:lbFmtHM(lbParseHM(t.time)+a.time),ldg:(parseInt(t.landings)||0)+a.ldg}); });
+  Object.keys(types).forEach(k=>{ if(seen.has(k))return; const a=types[k];
+    typeRows.push({name:a.name,validUntil:'',bfTime:lbFmtHM(0),bfLdg:0,cbeTime:lbFmtHM(a.time),cbeLdg:a.ldg,time:lbFmtHM(a.time),ldg:a.ldg}); });
+  let upTo=null; if(first){ const d=new Date(first+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()-1); upTo=d.toISOString().slice(0,10); }
+  return {rows,typeRows,upTo,count:sectors.length,noPage,hasBaseline:!!(b.totaltime||b.landings||(b.types&&b.types.length))};
+}
+function lbTableHTML(){
+  let L; try{ L=lbTotals(); }catch(e){ return '—'; }
+      const th='text-align:right;font-size:9px;color:#7a8aa0;font-weight:700;padding:3px 6px;border-bottom:1px solid #dde3ec;';
+      const td='text-align:right;padding:4px 6px;border-bottom:1px solid #eef1f6;font-size:11px;';
+      const note=L.hasBaseline?'':'<div style="color:#b8860b;font-size:10.5px;padding:2px 0 6px;">Brought forward not set yet — tap "Lifetime Baseline" above to enter your previous logbook totals.</div>';
+      const head=`<tr><th style="${th}text-align:left;"></th><th style="${th}">Brought forward${L.upTo?'<br><span style="font-weight:400;">to '+tbFmtDate(L.upTo)+'</span>':''}</th><th style="${th}">CBE logbook<br><span style="font-weight:400;">${L.count} flight${L.count===1?'':'s'}</span></th><th style="${th}color:#1a3a6a;">TOTAL</th></tr>`;
+      const body=L.rows.map(r=>`<tr><td style="${td}text-align:left;color:#555;">${r.label}</td><td style="${td}color:#888;">${r.bf}</td><td style="${td}color:#888;">+${r.cbe}</td><td style="${td}font-weight:800;color:#1a3a6a;">${r.total}</td></tr>`).join('');
+      const tbody=L.typeRows.map(t=>{
+        const dl=pfDaysUntil(t.validUntil);
+        const exp=dl===null?'':dl<0?' · ⛔ expired':dl<=60?' · ⚠ '+dl+'d':' · valid to '+t.validUntil;
+        return `<tr><td style="${td}text-align:left;color:#555;">${t.name}<span style="font-size:9px;color:${dl!==null&&dl<=60?'#c94a4a':'#999'};">${exp}</span></td><td style="${td}color:#888;">${t.bfTime} / ${t.bfLdg}</td><td style="${td}color:#888;">+${t.cbeTime} / +${t.cbeLdg}</td><td style="${td}font-weight:800;color:#1a3a6a;">${t.time} / ${t.ldg} ldg</td></tr>`;
+      }).join('');
+      return note+`<table style="width:100%;border-collapse:collapse;">${head}${body}${tbody?`<tr><td colspan="4" style="padding:8px 6px 2px;font-size:9px;color:#7a8aa0;font-weight:700;">AIRCRAFT TYPE (time / landings)</td></tr>`+tbody:''}</table>`+(L.noPage?`<div style="font-size:9.5px;color:#999;padding-top:4px;">${L.noPage} flight${L.noPage===1?'':'s'} without a logbook page — counted in total time, not in IFR / PIC.</div>`:'');
+}
+function lbOpenPop(){ document.getElementById('lbPopBody').innerHTML=lbTableHTML(); pfOpen('lbPopModal'); }
 function openBaselineModal(){
   const b=(DB.profile&&DB.profile.baselineTotals)||{};
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
@@ -8513,6 +8621,7 @@ function openBaselineModal(){
   const wrap=document.getElementById('pfBaselineTypes');wrap.innerHTML='';
   (b.types&&b.types.length?b.types:[]).forEach(t=>pfAddTypeRow(t.name,t.time,t.landings,t.validUntil));
   if(!b.types||!b.types.length)pfAddTypeRow();
+  try{ const L=lbTotals(), el=document.getElementById('pfb_upto'); if(el&&L.upTo) el.textContent='up to and including '+tbFmtDate(L.upTo)+' (the day before your first flight in this logbook)'; }catch(e){}
   pfOpen('pfBaselineModal');
 }
 function pfSaveBaseline(){
@@ -8727,6 +8836,7 @@ function pfEditQuickFlight(id){
   document.getElementById('qf_reg_hint').style.color=s.reg?'#2a8a2a':'#b8860b';
   document.getElementById('qf_pf').checked=!!s.pf;
   document.getElementById('qf_rules').value=s.rules||'IFR';
+  document.getElementById('qf_function').value=s.function||'PIC';
   document.getElementById('qf_training').checked=!!s.training;
   pfOpen('pfQuickFlightModal');
 }
@@ -8768,6 +8878,7 @@ function pfSaveQuickFlight(){
     ferry:paxType==='ferry',
     isTakeover:false,isHandover:false,
     rules:document.getElementById('qf_rules').value,
+    function:document.getElementById('qf_function').value,
     pf:document.getElementById('qf_pf').checked,
     training:document.getElementById('qf_training').checked,
     score:0,rawScore:0,cbeIndex:0,tasks:[],perfect:false,trainBonus:0,playMs:0,
