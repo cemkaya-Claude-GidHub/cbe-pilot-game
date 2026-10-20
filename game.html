@@ -1023,7 +1023,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
           <button class="cl-btn" style="background:#2a2a0d;border-color:#d0c05f;color:#e0d0a0;font-size:10px;" onclick="clDebugExport()">🐞 Copy debug state</button>
         </div>
       </div>
-      <div class="cl-flag" style="margin-bottom:10px;">🔄 One tap pulls in <b>both</b> sources at once: your actual gameplay (times, fuel, task answers) and the transcribed Brief/OFP prices Claude has read from your photos in chat. Either source can be missing for a given day — the result below tells you exactly which parts came through.</div>
+      <!-- 20 Oct 2026: explanatory note removed for a clean page -->
       <div id="cl-syncBanner" style="display:none;margin-bottom:10px;padding:10px 12px;border-radius:6px;font-size:12px;font-weight:600;white-space:pre-line;"></div>
       <div class="cl-tape">
         <div class="c non"><div class="k" id="cl-tapeNonLbl">Without CBE (today)</div><div class="v" id="cl-tapeNon">€0.00</div></div>
@@ -1073,11 +1073,11 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <button type="button" onclick="autoTranscribeTeclog()" style="background:#16324a;color:#9fe6d6;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer;margin:0 0 10px;">🔄 RE-READ TECLOG</button>
 
       <div class="cl-sec-title">02 · Ground stops — APU / Toilet / Water / GPU</div>
-      <div class="cl-flag" style="margin-bottom:8px;font-size:11px;">🔒 All figures below are locked to real data — pulled from the CBE game or transcribed from your Brief/OFP/Teclog. Nothing here can be typed in by hand.</div>
+      <!-- 20 Oct 2026: explanatory note removed for a clean page -->
       <div id="cl-stopsWrap"></div>
 
       <div class="cl-sec-title">03 · Legs — fuel, taxi, tankering</div>
-      <div class="cl-flag" style="margin-bottom:8px;font-size:11px;">🔒 Same here — every time and fuel figure comes from the real Teclog/OFP or the game, never typed in directly.</div>
+      <!-- 20 Oct 2026: note removed for a clean page -->
       <div id="cl-legsWrap"></div>
         </div>
       </details>
@@ -1105,7 +1105,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
           <div class="cl-fld"><label title="Locked — set in code, not editable here">Density (kg/ltr) 🔒</label><input type="number" step="0.01" id="cl-setDensity" value="0.80" readonly style="background:#1c2530;cursor:not-allowed;"></div>
           <div class="cl-fld"><label title="Fallback only — used only if a stop's real flight-pack rate can't be read">USD→EUR (fallback) 🔒</label><input type="number" step="0.01" id="cl-setFx" value="0.92" readonly style="background:#1c2530;cursor:not-allowed;"></div>
         </div>
-        <div class="cl-flag">APU non-CBE baseline: 80 min (pre/post-flight); turnaround = real ground time, max 80 min; CBE target &lt;40min. Toilet/Water/GPU fallback €100 until 100 real legs are on file, then switches to the rolling average automatically.</div>
+        <!-- 20 Oct 2026: explanatory note removed for a clean page -->
       </details>
     </div>
   </div>
@@ -3935,7 +3935,6 @@ function clRenderStops(){
         <div class="cl-fld"><label>Toilet price € (Brief, or €100 avg. if missing)${clFirstFree(s,'toilet')?' · <span style="color:#8fe8c4;">1st service FREE</span>':''}</label><input type="number" value="${s.toiletPrice}" readonly onchange="clUpdStop(${i},'toiletPrice',this.value)"></div>
         <div class="cl-fld"><label>Water price € (Brief, or €100 avg. if missing)${clFirstFree(s,'water')?' · <span style="color:#8fe8c4;">1st service FREE</span>':''}</label><input type="number" value="${s.waterPrice}" readonly onchange="clUpdStop(${i},'waterPrice',this.value)"></div>
       </div>
-      ${s.note?`<div class="cl-flag">${s.note}</div>`:''}
     </div>
   `).join('');
 }
@@ -3965,7 +3964,7 @@ function clRenderLegs(){
         <div class="cl-fld"><label>OFP Savings $/KLBS</label><input type="number" value="${l.ofpSavingsPerKlbs}" readonly onchange="clUpdLeg(${i},'ofpSavingsPerKlbs',this.value)"></div>
         <div class="cl-fld"><label>${(Array.isArray(l.burnTable)&&l.burnTable.length)?'Burn adj (OFP table, lbs at +'+l.burnTable.slice().sort((a,b)=>a.add-b.add).map(r=>r.add).join(' / +')+')':'Burn adj (lbs/1000lbs, OFP)'}</label><input type="text" value="${(Array.isArray(l.burnTable)&&l.burnTable.length)?l.burnTable.slice().sort((a,b)=>a.add-b.add).map(r=>r.burn).join(' / '):(l.burnAdjPer1000??0)}" readonly></div>
       </div>
-      <div style="margin-top:8px;font-size:9px;color:#7f92a3;text-transform:uppercase;letter-spacing:.05em;">🎮 From the CBE game (tap "Pull from CBE game" above to fill these in)</div>
+      <div style="margin-top:8px;font-size:9px;color:#7f92a3;text-transform:uppercase;letter-spacing:.05em;">🎮 From the game</div>
       <div class="cl-grid c2" style="margin-top:4px;font-size:11px;">
         <div><span style="color:#9fb0bd;">SE taxi-out:</span> ${clBadge(l.seOut,'flown','both engines')}</div>
         <div><span style="color:#9fb0bd;">SE taxi-in:</span> ${clBadge(l.seIn,'flown','both engines')}</div>
@@ -4174,7 +4173,9 @@ function clSyncAll(){
   const s=styles[kind];
   banner.style.display='block';
   banner.style.background=s.background;banner.style.border=s.border;banner.style.color=s.color;
-  banner.textContent=r1.message+'\n'+r2.message;
+  // 20 Oct 2026: one short line when all is fine; the details only when something is missing
+  banner.textContent=bothOk?'✅ Synced'+(CL_STATE.notFlown&&CL_STATE.notFlown.length?' · not flown: '+CL_STATE.notFlown.map(x=>x.from+'→'+x.to).join(', '):''):[r1.ok?'':r1.message,r2.ok?'':r2.message].filter(Boolean).join('\n');
+  if(bothOk) setTimeout(()=>{ if(banner.textContent.startsWith('✅ Synced')) banner.style.display='none'; },4000);
 }
 
 // ═══ FUEL TANKERING — one rule (3 Oct 2026, agreed with Cem) ═══
@@ -4542,7 +4543,7 @@ function clCompute(){
         if(c.none){ const k='n'+c.from+c.to; if(seen.has(k))return; seen.add(k);
           det+=`<div style="font-size:10px;color:#7d93a8;font-style:italic;padding:2px 8px 6px;">OFP check: ${c.from} fuel used ${c.hops} stops later — no OFP figure to compare.</div>`; return; }
         if(c.ok) det+=`<div style="font-size:10px;color:#8fe8c4;font-style:italic;padding:2px 8px 6px;">✓ OFP check ${c.from} → ${c.to} (${c.rate} $/1000 lbs): ≈ ${clSignedEur(c.ofpEur)} · game ${clSignedEur(c.gameEur)} · difference ${c.diff.toFixed(0)}%</div>`;
-        else warnHtml+=note(`⚠ OFP and game differ (${c.from} → ${c.to}: OFP ≈ ${clSignedEur(c.ofpEur)}, game ${clSignedEur(c.gameEur,true)}) — the OFP uses other fuel prices than the Brief, or a reading is off. Check the Brief prices and the Teclog.`,'#ffd76a','#3a2e0a');
+        else det+=`<div style="font-size:10px;color:#ffd76a;font-style:italic;padding:2px 8px 6px;">OFP check ${c.from} → ${c.to}: OFP ≈ ${clSignedEur(c.ofpEur)}, game ${clSignedEur(c.gameEur,true)} — the OFP uses other fuel prices than the Brief.</div>`; // 20 Oct 2026: info only, moved off the page
       });
       if(det){ CL_POP.cbe={title:'<span style="color:#ffd76a">⛽ FUEL TANKERING · WITH CBE</span>',body:det};
         extra+=`<tr><td colspan="5" style="padding:0;border-bottom:1px solid #1d3a44;text-align:left;"><div style="padding:7px 6px;"><button class="tapbtn" onclick="clShowPop('cbe')">🔍 DETAILS — fuel tankering</button></div></td></tr>`; }
@@ -4626,10 +4627,7 @@ function clRenderWarnings(R){
   let html='';
   if(warn.length) html+=`<div style="${css}background:#3a2e0a;border:1px solid #c9a04a;color:#ffd76a;"><b>⚠ Incomplete</b><br>${warn.join('<br>')}</div>`;
   if(checks.length) html+=`<div style="${css}background:#3a1414;border:1px solid #c94a4a;color:#ffb0b0;"><b>⚠ Teclog figures look wrong — please compare with your Journey Log</b><br>${checks.join('<br>')}</div>`;
-  const used=legs.filter(l=>+l.offBlockFuel>0).map(l=>`${l.from}→${l.to}: ${l.offBlock||'?'}/${l.tO||'?'} → ${l.landing||'?'}/${l.onBlock||'?'} · fuel ${l.offBlockFuel}/${l.tOFuel||'?'} → ${l.landingFuel||'?'}/${l.onBlockFuel}`);
-  if(used.length) html+=`<details style="${css}background:#0f1f2e;border:1px solid #2a4a66;color:#9fc8ff;"><summary class="tapsum"><span><b>Teclog figures used</b> (off-block/T-O → landing/on-block)</span></summary>${used.join('<br>')}${st.takeoverFuel?'<br>Takeover fuel: '+st.takeoverFuel+' lbs':''}</details>`;
-  const ac=getAcAssumptions((typeof flightLog!=='undefined'&&flightLog&&flightLog.acType)||'Challenger 350');
-  html+=`<details style="${css}background:#121a22;border:1px solid #2a3a4a;color:#9fb0c0;"><summary class="tapsum"><span><b>Assumed values</b> (not read from a document)${assum.length?' — '+assum.length+' for this day':''}</span></summary>${assum.length?assum.join('<br>')+'<br>':''}APU burn ${ac.apu} lbs/h · idle 1 engine ${ac.idle} lbs/h${ac.verified?'':' (CL350 values — not verified for this type)'} · fuel density 0.80 kg/L · normal pilot: APU 80 min per stop (max. real ground time), takes exactly the OFP fuel.</details>`;
+  // 20 Oct 2026: "Teclog figures used" and "Assumed values" removed for a clean page — the figures are in the leg cards
   box.innerHTML=html;
 }
 
