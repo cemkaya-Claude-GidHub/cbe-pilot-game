@@ -554,6 +554,28 @@ table.cl-res td{padding:5px 6px;border-bottom:1px solid #182430;text-align:right
 table.cl-res td:first-child{text-align:left;color:#dfe8ef;}
 table.cl-res td.non{color:#ffb84d;}table.cl-res td.cbe{color:#16c79a;}table.cl-res td.saved{color:#fff;font-weight:700;}
 table.cl-res tr.total td{border-top:1.5px solid #345;border-bottom:none;font-weight:700;padding-top:7px;}
+/* 20 Oct 2026: Lifetime logbook pop-up */
+.lbhero{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lbh{border-radius:12px;padding:12px}
+.lbh.now{background:#eef3fa;border:1.5px solid #c9d6ea;color:#1a3a6a}
+.lbh.cbe{background:#eaf7f0;border:1.5px solid #b6e2cb;color:#16865a}
+.lbh .k{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.lbh .v{font-size:21px;font-weight:800;margin-top:4px;line-height:1.15}
+.lbh .s{font-size:12px;font-weight:700;margin-top:3px}
+.lbtab{width:100%;border-collapse:collapse;margin-top:14px}
+.lbtab th{font-size:10px;letter-spacing:1px;text-transform:uppercase;text-align:right;padding:0 6px 6px;font-weight:800}
+.lbtab th.c{color:#16865a}.lbtab th.n{color:#1a3a6a}
+.lbtab td{padding:9px 6px;border-top:1px solid #e6ebf2;text-align:right;vertical-align:top}
+.lbtab td.lbn{text-align:left;font-size:13.5px;color:#3d4b5e}
+.lbtab td.lbc{font-size:13.5px;font-weight:800;color:#16865a;white-space:nowrap}
+.lbtab td.lbc.z{color:#c3ccd8;font-weight:600}
+.lbtab td.lbt{font-size:13.5px;font-weight:800;color:#1a3a6a;white-space:nowrap}
+.lbtab .lbs{display:block;font-size:10.5px;color:#8a97aa;font-weight:500}
+.lbtab tr.lbsep td{padding:14px 6px 4px;border-top:none;font-size:10px;color:#8a97aa;font-weight:800;letter-spacing:1px;text-transform:uppercase;text-align:left}
+.lbbf{margin-top:12px;background:#f5f7fa;border-radius:10px;padding:10px 12px;font-size:11.5px;color:#6b7a8e;line-height:1.55}
+.lbbf b{color:#4d5c70}
+.lbfoot{font-size:10.5px;color:#9aa6b8;margin-top:8px;line-height:1.5}
+@media(max-width:420px){.lbh .v{font-size:18px}.lbtab td.lbn,.lbtab td.lbc,.lbtab td.lbt{font-size:12.5px}.lbtab td,.lbtab th{padding-left:3px;padding-right:3px}}
 /* 20 Oct 2026 (Cem): "tap to open" links were too hidden — one clear button style everywhere */
 .tapbtn{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;background:#16324a;border:1.5px solid #4fb3ff;color:#e3f2ff;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit;box-shadow:0 0 0 3px rgba(79,179,255,.13);white-space:nowrap;}
 .tapbtn.red{background:#3a1820;border-color:#ff6b6b;color:#ffe0e0;box-shadow:0 0 0 3px rgba(255,107,107,.13);}
@@ -723,7 +745,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
   <div class="pf-modal">
     <div class="pf-head"><h3>📋 LIFETIME LOGBOOK</h3><button class="pf-close" onclick="pfClose('lbPopModal')">✕</button></div>
     <div class="pf-body"><div id="lbPopBody"></div>
-      <div style="font-size:10px;color:#888;margin-top:8px;">Not part of the CBE score. To change the brought-forward totals, tap "Lifetime Baseline" on the dashboard.</div></div>
+</div>
   </div>
 </div>
 
@@ -2329,12 +2351,16 @@ function scoreMigrate1020(d){
 function crewBackfill(d){
   d=d||DB; let n=0;
   const secs=(d.sectors||[]).filter(s=>!s.manual);
-  (d.personalLog||[]).filter(e=>e&&e.crew).forEach(e=>{
-    const cands=secs.filter(s=>!s.crew&&s.date===e.date&&s.dep===e.dep&&s.arr===e.arr);
+  (d.personalLog||[]).filter(e=>e&&(e.crew||e.function||e.rules)).forEach(e=>{
+    // 20 Oct 2026: also keep the logbook page's function + IFR/VFR on the flight itself (for the lifetime totals)
+    const cands=secs.filter(s=>s.date===e.date&&s.dep===e.dep&&s.arr===e.arr&&((!s.crew&&e.crew)||(!s.function&&e.function)||(!s.rules&&e.rules)));
     if(!cands.length) return;
     const t=e.timestamp||0;
     const best=cands.reduce((a,b)=>Math.abs((b.timestamp||0)-t)<Math.abs((a.timestamp||0)-t)?b:a);
-    best.crew=e.crew; n++;
+    if(!best.crew&&e.crew) best.crew=e.crew;
+    if(!best.function&&e.function) best.function=e.function;
+    if(!best.rules&&e.rules) best.rules=e.rules;
+    n++;
   });
   return n;
 }
@@ -8548,7 +8574,10 @@ function pfAddTypeRow(name,time,landings,validUntil){
 // The baseline covers everything BEFORE the first CBE logbook flight, so nothing counts twice.
 function lbParseHM(v){
   if(v==null)return 0; const t=String(v).trim(); if(!t)return 0;
-  const m=t.match(/^(\d+)\s*[:h]\s*(\d{1,2})$/); if(m) return (+m[1])*60+(+m[2]);
+  // 20 Oct 2026: the logbook stores block time as "1h 32m" / "42m" — before, "42m" was read as 42 HOURS
+  let m=t.match(/^(\d+)\s*:\s*(\d{1,2})$/); if(m) return (+m[1])*60+(+m[2]);
+  m=t.match(/^(\d+)\s*h(?:\s*(\d{1,2})\s*m(?:in)?)?$/i); if(m) return (+m[1])*60+(+(m[2]||0));
+  m=t.match(/^(\d{1,3})\s*m(?:in)?$/i); if(m) return +m[1];
   const n=parseFloat(t.replace(',','.')); return isNaN(n)?0:Math.round(n*60);
 }
 function lbFmtHM(min){ min=Math.round(min||0); return Math.floor(min/60)+' h '+(min%60)+' min'; } // 20 Oct 2026 (Cem): "6345 h 30 min" everywhere — clearer than 6345:30
@@ -8574,10 +8603,12 @@ function lbTotals(){
   sectors.forEach(x=>{
     const iso=clDateToISO(x.date)||''; if(iso&&(!first||iso<first)) first=iso;
     let mins=lbParseHM(x.totalTime), fn=x.function||'', rules=x.rules||'';
-    if(!x.manual){
-      const e=plog.filter(p=>p.date===x.date&&p.dep===x.dep&&p.arr===x.arr)
+    if(!x.manual&&!(fn&&rules)){
+      const xi=clDateToISO(x.date);
+      const e=plog.filter(p=>(p.date===x.date||clDateToISO(p.date)===xi)&&(p.dep||'').toUpperCase()===(x.dep||'').toUpperCase()&&(p.arr||'').toUpperCase()===(x.arr||'').toUpperCase())
         .sort((p,q)=>Math.abs((p.timestamp||0)-(x.timestamp||0))-Math.abs((q.timestamp||0)-(x.timestamp||0)))[0];
-      if(e){ fn=fn||e.function||''; rules=rules||e.rules||''; if(!mins) mins=lbParseHM(e.block); } else noPage++;
+      if(e){ fn=fn||e.function||''; rules=rules||e.rules||''; if(!mins) mins=lbParseHM(e.block); }
+      else { noPage++; rules=rules||'IFR'; fn=fn||(tbLoadRank()==='SIC'?'COPI':'PIC'); } // no logbook page: IFR (jet ops) + your rank
     }
     add.tot+=mins; if(x.pf) add.ldg++;
     if(/^IFR$/i.test(rules)) add.ifr+=mins;
@@ -8599,18 +8630,24 @@ function lbTotals(){
   return {rows,typeRows,upTo,count:sectors.length,noPage,hasBaseline:!!(b.totaltime||b.landings||(b.types&&b.types.length))};
 }
 function lbTableHTML(){
+  // 20 Oct 2026 (Cem): "Total now" and "CBE logbook" in front; the previous logbook only as a small note.
   let L; try{ L=lbTotals(); }catch(e){ return '—'; }
-      const th='text-align:right;font-size:9px;color:#7a8aa0;font-weight:700;padding:3px 6px;border-bottom:1px solid #dde3ec;';
-      const td='text-align:right;padding:4px 6px;border-bottom:1px solid #eef1f6;font-size:11px;';
-      const note=L.hasBaseline?'':'<div style="color:#b8860b;font-size:10.5px;padding:2px 0 6px;">Brought forward not set yet — tap "Lifetime Baseline" above to enter your previous logbook totals.</div>';
-      const head=`<tr><th style="${th}text-align:left;"></th><th style="${th}">Brought forward${L.upTo?'<br><span style="font-weight:400;">to '+tbFmtDate(L.upTo)+'</span>':''}</th><th style="${th}">CBE logbook<br><span style="font-weight:400;">${L.count} flight${L.count===1?'':'s'}</span></th><th style="${th}color:#1a3a6a;">TOTAL</th></tr>`;
-      const body=L.rows.map(r=>`<tr><td style="${td}text-align:left;color:#555;">${r.label}</td><td style="${td}color:#888;">${r.bf}</td><td style="${td}color:#888;">+${r.cbe}</td><td style="${td}font-weight:800;color:#1a3a6a;">${r.total}</td></tr>`).join('');
-      const tbody=L.typeRows.map(t=>{
-        const dl=pfDaysUntil(t.validUntil);
-        const exp=dl===null?'':dl<0?' · ⛔ expired':dl<=60?' · ⚠ '+dl+'d':' · valid to '+t.validUntil;
-        return `<tr><td style="${td}text-align:left;color:#555;">${t.name}<span style="font-size:9px;color:${dl!==null&&dl<=60?'#c94a4a':'#999'};">${exp}</span></td><td style="${td}color:#888;">${t.bfTime} / ${t.bfLdg}</td><td style="${td}color:#888;">+${t.cbeTime} / +${t.cbeLdg}</td><td style="${td}font-weight:800;color:#1a3a6a;">${t.time} / ${t.ldg} ldg</td></tr>`;
-      }).join('');
-      return note+`<table style="width:100%;border-collapse:collapse;">${head}${body}${tbody?`<tr><td colspan="4" style="padding:8px 6px 2px;font-size:9px;color:#7a8aa0;font-weight:700;">AIRCRAFT TYPE (time / landings)</td></tr>`+tbody:''}</table>`+(L.noPage?`<div style="font-size:9.5px;color:#999;padding-top:4px;">${L.noPage} flight${L.noPage===1?'':'s'} without a logbook page — counted in total time, not in IFR / PIC.</div>`:'');
+  const R=k=>L.rows.find(r=>r.key===k)||{};
+  const z=v=>/^(0|0 h 0 min)$/.test(String(v));
+  const tot=R('tot'), ldg=R('ldg');
+  const cat=[['IFR','ifr'],['PIC / PICUS','pic'],['Multi engine','me'],['Jet','jet'],['Single engine','se']].map(([n,k])=>{const r=R(k);
+    return `<tr><td class="lbn">${n}</td><td class="lbc${z(r.cbe)?' z':''}">${z(r.cbe)?'—':r.cbe}</td><td class="lbt">${r.total}</td></tr>`;}).join('');
+  const typ=L.typeRows.map(t=>{const dl=pfDaysUntil(t.validUntil);
+    const exp=dl===null?'':(dl<0?'<span class="lbs" style="color:#c94a4a;">⛔ expired</span>':`<span class="lbs"${dl<=60?' style="color:#c94a4a;"':''}>valid to ${tbFmtDate(t.validUntil)}</span>`);
+    const zc=z(t.cbeTime)&&!t.cbeLdg;
+    return `<tr><td class="lbn">${t.name}${exp}</td><td class="lbc${zc?' z':''}">${zc?'—':t.cbeTime+'<span class="lbs" style="color:#16865a;">'+t.cbeLdg+' ldg</span>'}</td><td class="lbt">${t.time}<span class="lbs">${t.ldg} ldg</span></td></tr>`;}).join('');
+  const bf=R('tot').bf, bfl=R('ldg').bf;
+  return `<div class="lbhero"><div class="lbh now"><div class="k">Total now</div><div class="v">${tot.total}</div><div class="s">${ldg.total} landings</div></div>
+    <div class="lbh cbe"><div class="k">CBE logbook</div><div class="v">${tot.cbe}</div><div class="s">${L.count} flight${L.count===1?'':'s'} · ${ldg.cbe} landing${ldg.cbe==='1'?'':'s'}</div></div></div>
+    <table class="lbtab"><tr><th></th><th class="c">CBE logbook</th><th class="n">Total now</th></tr>${cat}
+    ${typ?`<tr class="lbsep"><td colspan="3">Aircraft types · time / landings</td></tr>${typ}`:''}</table>
+    <div class="lbbf">${L.hasBaseline?`<b>Brought forward from your previous logbook</b>${L.upTo?' (to '+tbFmtDate(L.upTo)+')':''}: ${bf} · ${bfl} landings — already included in "Total now". Change it under "Lifetime Baseline" on the dashboard.`:`<b>Brought forward not set yet.</b> Enter your previous logbook totals under "Lifetime Baseline" on the dashboard.`}</div>
+    <div class="lbfoot">Landings count only when you were Pilot Flying.${L.noPage?` ${L.noPage} flight${L.noPage===1?'':'s'} without a logbook page count as IFR and as ${tbLoadRank()==='SIC'?'co-pilot':'PIC'} (your rank in Pilot Bonus).`:''} Not part of the CBE score.</div>`;
 }
 function lbOpenPop(){ document.getElementById('lbPopBody').innerHTML=lbTableHTML(); pfOpen('lbPopModal'); }
 function openBaselineModal(){
