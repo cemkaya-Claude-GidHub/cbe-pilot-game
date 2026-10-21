@@ -3142,6 +3142,7 @@ function clLoadTranscribed(){
     const usgToLtr=3.785411784;
     const fxRate=(s.fuelPrice>0&&s.fuelPriceUsgUsd>0)?(s.fuelPrice/(s.fuelPriceUsgUsd/usgToLtr)):undefined;
     return {...s,id:prev.id||clUid(),fxRate,
+      split:!!prev.split,splitPostUnder40:prev.splitPostUnder40,splitPostNotReq:prev.splitPostNotReq,
       apuUnder40:prev.apuUnder40!=null?prev.apuUnder40:null,
       apuNotRequired:prev.apuNotRequired!=null?prev.apuNotRequired:null,
       gpuNeeded:prev.gpuNeeded!=null?prev.gpuNeeded:(isLastStop?false:null),
@@ -3191,7 +3192,7 @@ function clDropUnflownLegs(dateStr){
   });
   if(!drop.length||!keep.length) return;
   const last=played[played.length-1];
-  const finished=last.dayFinished===true||(last.dayFinished==null&&(last.choices||[]).some(c=>CL_LAST_ONLY_TASKS.includes(c.task)));
+  const finished=last.dayFinished===true||(last.dayFinished==null&&(last.choices||[]).some(c=>CL_LAST_ONLY_TASKS.includes(c.task))); // 'split' = break, more flights to come
   CL_STATE.notFlown=drop.map(l=>({from:l.from,to:l.to,reason:finished?'cancelled':'not flown yet'}));
   // rebuild the stop chain from the flown legs only
   const oldStops=CL_STATE.stops, stops=[];
@@ -3201,7 +3202,7 @@ function clDropUnflownLegs(dateStr){
     l.depStop=stops.length-1;
     stops.push({...arr}); l.arrStop=stops.length-1;
   });
-  stops.forEach((st,i)=>{ st.phase=i===0?'preflight':(i===stops.length-1?'postflight':'turnaround'); });
+  stops.forEach((st,i)=>{ st.phase=i===0?'preflight':(i===stops.length-1?'postflight':'turnaround'); if(i===0||i===stops.length-1) st.split=false; });
   CL_STATE.legs=keep; CL_STATE.stops=stops;
 }
 function clLoadState(){
@@ -3919,7 +3920,7 @@ function clRenderStops(){
   if(!CL_STATE.stops.length){ document.getElementById('cl-stopsWrap').innerHTML='<div class="cl-empty">No ground stops loaded for this date yet. Tap "🔄 Sync this day\'s data" above.</div>'; return; }
   document.getElementById('cl-stopsWrap').innerHTML=CL_STATE.stops.map((s,i)=>`
     <div class="cl-card">
-      <div class="cl-card-h"><span>${s.airport} — ${s.label}</span><span class="tag">${s.phase}</span></div>
+      <div class="cl-card-h"><span>${s.airport} — ${s.label}</span><span class="tag">${s.split?'split duty':s.phase}</span></div>
       ${i===0?`<div class="cl-flag" style="background:#0c2e1f;border-color:#16c79a;color:#16c79a;padding:3px 6px;font-size:10px;margin-bottom:6px;">✈ Fuel on takeover: ${CL_STATE.takeoverFuel!=null?CL_STATE.takeoverFuel+' lbs (from game)':'not entered yet — play the "REMAINING FUEL ON TAKEOVER" task in-game'}</div>`:''}
       <div class="cl-grid c3">
         <div class="cl-fld"><label>Baseline APU (min)</label><input type="number" value="${clApuBaselineMin(s,i)}" readonly onchange="clUpdStop(${i},'baselineMin',this.value)"></div>
@@ -4103,7 +4104,7 @@ function clSyncFromGame(){
       offBlockFuel:prev.offBlockFuel||0, tOFuel:prev.tOFuel||0, landingFuel:prev.landingFuel||0, onBlockFuel:prev.onBlockFuel||0, refuelQty:prev.refuelQty||0, burnAdjPer1000:prev.burnAdjPer1000||0,
       ofpTotal:prev.ofpTotal||0, ofpSavingsPerKlbs:prev.ofpSavingsPerKlbs||0,
       seOut, seIn, apuEarlyOff, apuLateIn, apuNotStartedIn, toiletChoice, waterChoice,
-      _apuPrePts:chPts('apu_pre'), _gpuPts:chPts('groundpow'), _apuPostPts:chPts('apu_post40')
+      _apuPrePts:chPts('apu_pre'), _gpuPts:chPts('groundpow'), _apuPostPts:chPts('apu_post40'), _split:s.dayFinished==='split'
     };
   });
   const airports=[newLegs[0].from,...newLegs.map(l=>l.to)];
@@ -4142,6 +4143,8 @@ function clSyncFromGame(){
     const gpuNeeded=(gpuMinutes!=null)?(gpuMinutes===0?false:true):(prevS.gpuNeeded!=null?prevS.gpuNeeded:(isLastStop?false:null));
     return {
       id:prevS.id||clUid(), airport:ap, phase, label, baselineMin, apuUnder40, apuNotRequired, gpuNeeded, gpuMinutes,
+      // 21 Oct 2026: split duty — the leg before ended its duty here (APU after shutdown answered then)
+      ...((i>0&&i<newLegs.length&&newLegs[i-1]._split)?{split:true,splitPostUnder40:newLegs[i-1]._apuPostPts===30,splitPostNotReq:newLegs[i-1]._apuPostPts===50}:{split:false}),
       fuelPrice: prevS.fuelPrice!=null?prevS.fuelPrice:1.0,
       toiletPrice: prevS.toiletPrice!=null?prevS.toiletPrice:100,
       waterPrice: prevS.waterPrice!=null?prevS.waterPrice:100,
@@ -4336,6 +4339,7 @@ function clShowPop(which){
 var CL_POP={};
 
 function clApuBaselineMin(s,si){
+  if(s.split) return 160; // 21 Oct 2026: split duty — shut down + new start = 80 + 80 min
   if(s.phase!=='turnaround') return 80;
   const inLeg=CL_STATE.legs.find(l=>l.arrStop===si), outLeg=CL_STATE.legs.find(l=>l.depStop===si);
   const groundMin=(inLeg&&outLeg)?clDiffMin(inLeg.onBlock,outLeg.offBlock):0;
@@ -4384,7 +4388,9 @@ function clComputeCore(opts){
     // APU ground time: baseline = habitual 80min/full-turnaround; CBE = 40min IF the game
     // confirms the threshold was met, else no saving shown (unknown or over-40 both fall back to baseline).
     const baselineLbs=(s.baselineMin/60)*apuRate;
-    const cbeMin=(s.apuNotRequired===true)?0:((s.apuUnder40===true)?Math.min(APU_THRESH_MIN,s.baselineMin):s.baselineMin);
+    const cbeMin=s.split
+      ? ((s.splitPostNotReq===true?0:(s.splitPostUnder40===true?APU_THRESH_MIN:80))+(s.apuUnder40===true?APU_THRESH_MIN:80)) // after shutdown + before the new start
+      : (s.apuNotRequired===true)?0:((s.apuUnder40===true)?Math.min(APU_THRESH_MIN,s.baselineMin):s.baselineMin);
     const cbeLbs=(cbeMin/60)*apuRate;
     apuNon+=clLbsToEur(baselineLbs,s.fuelPrice); apuCbe+=clLbsToEur(cbeLbs,s.fuelPrice);
     if(s.apuUnder40!=null||s.apuNotRequired!=null) apuHas=true;
@@ -4768,7 +4774,7 @@ function clDeleteHistDay(date){
 }
 
 // ═══ STATISTICS ═══
-const TASK_SHORT={transp_ha:'Transport H→A',movm_transport:'Movement msg (transport)',crew_brief:'Crew briefing',pf:'Pilot flying',movm_aircraft:'Movement msg (aircraft)',to_handover:'T/O handover msg',tire_pressure:'Tire pressure check',groundpow:'Ground power (GPU)',apu_pre:'APU before departure',fuel_tankering:'Fuel tankering',toilet_svc:'Toilet service',water_svc:'Water service',movm_pax30:'Movement msg (30 min)',pax_late:'PAX late',miss_slot_pax:'Slot missed (PAX)',miss_slot_crew:'Slot missed (crew)',passport_scan:'Passport scan',movm_offblocks:'Movement msg (off-blocks)',apu_early_off:'APU off early (taxi-out)',se_taxi_out:'Single-engine taxi out',movm_takeoff:'Movement msg (takeoff)',fuel_enroute:'Fuel saving enroute',flight_time:'Flight time reduced',non_sop:'Non-SOP operation',se_taxi_in:'Single-engine taxi in',apu_late_in:'APU late (taxi-in)',customer_happy:'Customer happy',fuel_trip:'Fuel saving (trip)',flight_time_total:'Fuel saving (trip+taxi)',flight_time_total_time:'Flight time (entire flight)',turn_atc:'Turnaround (ATC/pax)',turn_crew:'Turnaround (crew)',turn_ontime:'Turnaround on time',aog_support:'AOG recovery support',moc_forward:'MOC thinking forward',help_cleaning:'Cabin cleaning help',apu_post40:'APU off after last flight',ho_send:'Handover msg sent',clean_ac:'A/C cleaned',transp_ah:'Transport A→H',crew_debrief:'Crew debrief',dayops:'Flight ops maintained',late_checkout:'Late checkout'};
+const TASK_SHORT={transp_ha:'Transport H→A',movm_transport:'Movement msg (transport)',crew_brief:'Crew briefing',pf:'Pilot flying',movm_aircraft:'Movement msg (aircraft)',to_handover:'T/O handover msg',tire_pressure:'Tire pressure check',groundpow:'Ground power (GPU)',apu_pre:'APU before departure',fuel_tankering:'Fuel tankering',toilet_svc:'Toilet service',water_svc:'Water service',movm_pax30:'Movement msg (30 min)',pax_late:'PAX late',miss_slot_pax:'Slot missed (PAX)',miss_slot_crew:'Slot missed (crew)',passport_scan:'Passport scan',movm_offblocks:'Movement msg (off-blocks)',apu_early_off:'APU off early (taxi-out)',se_taxi_out:'Single-engine taxi out',movm_takeoff:'Movement msg (takeoff)',fuel_enroute:'Fuel saving enroute',flight_time:'Flight time reduced',non_sop:'Non-SOP operation',se_taxi_in:'Single-engine taxi in',apu_late_in:'APU late (taxi-in)',customer_happy:'Customer happy',fuel_trip:'Fuel saving (trip)',flight_time_total:'Fuel saving (trip+taxi)',flight_time_total_time:'Flight time (entire flight)',turn_atc:'Turnaround (ATC/pax)',turn_crew:'Turnaround (crew)',turn_ontime:'Turnaround on time',dep_ontime:'Departure on time',aog_support:'AOG recovery support',moc_forward:'MOC thinking forward',help_cleaning:'Cabin cleaning help',apu_post40:'APU off after last flight',ho_send:'Handover msg sent',clean_ac:'A/C cleaned',transp_ah:'Transport A→H',crew_debrief:'Crew debrief',dayops:'Flight ops maintained',late_checkout:'Late checkout'};
 function taskPhaseGroup(id){
   const t=TASKS.find(x=>x.id===id);const ph=t?t.phase:'';
   if(/TRANSPORT|COCKPIT|PRE-FLIGHT|BOARDING|DEPARTURE/.test(ph))return 'GROUND & PRE-FLIGHT';
@@ -5311,8 +5317,14 @@ function autoSetFlightType(){
   const sel=document.getElementById('fl-flighttype');
   if(!dateVal||!sel)return;
   const disp=fmtDate(new Date(dateVal+'T00:00:00'));
-  const already=((loadData().sectors)||[]).some(s=>s.date===disp);
-  sel.value=already?'notfirst':'first';
+  const today=((loadData().sectors)||[]).filter(s=>s.date===disp&&!s.manual).sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+  const last=today[today.length-1];
+  sel.value=(!today.length||(last&&last.dayFinished==='split'))?'first':'notfirst'; // 21 Oct 2026: after a split duty the next flight starts a new duty
+}
+function clAfterSplit(dispDate){
+  const today=((loadData().sectors)||[]).filter(s=>s.date===dispDate&&!s.manual).sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+  const last=today[today.length-1];
+  return !!(last&&last.dayFinished==='split');
 }
 function wireFlightTypeAutoDetect(){
   const dateEl=document.getElementById('fl-date');
@@ -5395,7 +5407,7 @@ function getScene(wx){return SCENES.find(s=>wx>=s.from&&wx<s.to)||SCENES[0];}
 
 const TASKS=[
   {id:'transp_ha',wx:200,phase:'🚗 TRANSPORT',icon:'🚕',when:'first',q:'Transport Hotel → Airport',
-   c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'}]},
+   c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'},{l:'NO TRANSPORT',p:0,i:'🏢',d:'Stayed at airport'}]},
   {id:'movm_transport',wx:305,phase:'🚗 TRANSPORT',icon:'🏃',when:'first',q:'MOVEMENT MSG sent? (crew in transport)',
    c:[{l:'YES ✓',p:0,i:'📤',d:'Sent!'},{l:'NO',p:-20,i:'😬',d:'-20!'}]},
   {id:'upload_flightpack',wx:350,phase:'🚗 TRANSPORT',icon:'📎',when:'every',isFileUpload:true,
@@ -5448,6 +5460,8 @@ const TASKS=[
    c:[{l:'NO ✓',p:0,i:'🟢',d:'Ready!'},{l:'YES',p:-20,i:'🔴',d:'-20!'}]},
   {id:'passport_scan',paxOnly:true,wx:1987,phase:'🛫 DEPARTURE',icon:'🛂',when:'every',q:'PASSPORT SCAN performed?',
    c:[{l:'YES ✓',p:0,i:'✅',d:'Done!'},{l:'NO',p:-20,i:'❌',d:'-20!'}]},
+  {id:'dep_ontime',wx:2060,phase:'🛫 DEPARTURE',icon:'🕐',when:'every',q:'DEPARTURE ON TIME?',
+   c:[{l:'ON TIME ✓',p:30,i:'🟢',d:'+30!'},{l:'DELAY RECOVERED',p:50,i:'💪',d:'Late in, on time out · +50!'},{l:'DELAYED — not our fault',p:0,i:'⏸️',d:'ATC / pax / slot'},{l:'DELAYED — crew',p:-20,i:'🔴',d:'-20!'}]},
   {id:'movm_offblocks',wx:2092,phase:'🛫 DEPARTURE',icon:'🤲',when:'every',q:'MOVEMENT MSG sent at OFF BLOCKS?',
    c:[{l:'YES ✓',p:0,i:'📤',d:'Sent!'},{l:'NO',p:-20,i:'😬',d:'-20!'}]},
   {id:'apu_early_off',training:true,wx:2197,phase:'🛫 TAXI OUT',icon:'⏲️',when:'every',note:'If in accordance with SOP',q:'APU EARLY OFF during taxi-out (departure)?',
@@ -5473,11 +5487,8 @@ const TASKS=[
    c:[{l:'YES ✓',p:50,i:'⛽',d:'+50!'},{l:'NO',p:0,i:'🔥',d:'Normal.'}]},
   {id:'flight_time_total_time',wx:3110,phase:'🛬 AFTER LANDING',icon:'📚',when:'every',note:'Destination time vs Teclog Air Time.',q:'FLIGHT TIME REDUCED ENTIRE FLIGHT — takeoff to landing (planned vs real)?',
    c:[{l:'YES ✓',p:50,i:'⏱️',d:'+50!'},{l:'NO',p:0,i:'🕐',d:'Normal.'}]},
-  // 20 Oct 2026 (Cem): the two turnaround questions (ATC/pax and crew) became ONE. An on-time or
-  // recovered turnaround now earns points — before, a perfect turnaround scored 0, so first and
-  // middle legs had little to earn. A delay that isn't the crew's fault stays 0 (no reward for luck).
-  {id:'turn_ontime',wx:3190,phase:'🎡 TURNAROUND',icon:'🎡',when:'firstmid',q:'TURNAROUND ON TIME?',
-   c:[{l:'ON TIME ✓',p:30,i:'🟢',d:'+30!'},{l:'DELAY RECOVERED',p:50,i:'💪',d:'+50!'},{l:'DELAYED — not our fault',p:0,i:'⏸️',d:'ATC / pax / slot'},{l:'DELAYED — crew',p:-20,i:'🔴',d:'-20!'}]},
+  // 21 Oct 2026 (Cem): "Turnaround on time?" became "Departure on time?", asked at OFF BLOCKS of every
+  // leg — so it's answered when it's actually known (a split duty can have 10 h before the next departure).
   {id:'aog_support',wx:3354,phase:'⚙️ OPS',icon:'⚙️',when:'every',q:'AOG RECOVERY SUPPORT provided?',
    c:[{l:'YES ✓',p:30,i:'🔧',d:'+30!'},{l:'N/A',p:0,i:'🔧',d:'n/a'}]},
   {id:'moc_forward',wx:3459,phase:'⚙️ OPS',icon:'⚙️',when:'every',q:'MOC THINKING FORWARD?',
@@ -5491,7 +5502,7 @@ const TASKS=[
   {id:'clean_ac',wx:3879,phase:'🧹 POST FLIGHT',icon:'🧹',when:'last',handoverOnly:true,q:'A/C CLEANED for incoming crew?',
    c:[{l:'YES ✓',p:0,i:'✨',d:'Ready!'},{l:'NO',p:-20,i:'😤',d:'-20!'}]},
   {id:'transp_ah',wx:3985,phase:'🚗 TRANSPORT',icon:'🚕',when:'last',q:'Transport Airport → Hotel',
-   c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'}]},
+   c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'},{l:'NO TRANSPORT',p:0,i:'🏢',d:'Stayed at airport'}]},
   {id:'crew_debrief',wx:4090,phase:'🏨 HOTEL',icon:'👨‍✈️',when:'last',q:'Crew debrief done after flight day?',
    c:[{l:'YES ✓',p:0,i:'✅',d:'Done!'},{l:'NO',p:-20,i:'❌',d:'-20!'}]},
   {id:'dayops',training:true,wx:3620,phase:'🏨 HOTEL',icon:'🛫',when:'every',q:'FLIGHT/FLIGHT OPS maintained (happy with your performance)?',
@@ -5662,7 +5673,9 @@ function initWorld(){
   // tail for several more days before handing it over). Split into two specific flags.
   const takingOver=!!flightLog.isTakeover;
   const handingOver=!!flightLog.isHandover;
+  const afterSplit=isFirst&&clAfterSplit(flightLog.date); // 21 Oct 2026: same aircraft, fuel already known
   G.tQueue=[...TASKS].filter(t=>{
+    if(afterSplit&&(t.id==='fuel_takeover'||t.id==='to_handover'))return false;
     if(t.takeoverOnly && !takingOver)return false;
     if(t.handoverOnly && !handingOver)return false;
     // PAX-only tasks: skip on ferry (non-pax) flights
@@ -6053,10 +6066,10 @@ function showDayDecision(){
   document.getElementById('pop-icon').textContent='🤔';
   document.getElementById('pop-q').textContent='Is your DUTY DAY finished after this flight?';
   const noteEl=document.getElementById('pop-note');
-  noteEl.textContent='ℹ️ "Finished" adds end-of-day tasks (debrief, checkout, transport to hotel). "Another flight" continues your duty.';
+  noteEl.textContent='ℹ️ Split duty = a break, more flights later today.';
   noteEl.classList.add('show');
   const cc=document.getElementById('pop-cards');cc.innerHTML='';
-  const opts=[{l:'DAY FINISHED',i:'🏨',d:'Go to hotel',v:true},{l:'ANOTHER FLIGHT',i:'✈️',d:'Duty continues',v:false}];
+  const opts=[{l:'DAY FINISHED',i:'🏨',d:'Go to hotel',v:true},{l:'ANOTHER FLIGHT',i:'✈️',d:'Duty continues',v:false},{l:'SPLIT DUTY',i:'☕',d:'Break — more flights later today',v:'split'}];
   opts.forEach(o=>{
     const div=document.createElement('div');div.className='card neu';
     div.innerHTML=`<span class="ci">${o.i}</span><div class="cn">${o.l}</div><div class="cd">${o.d}</div>`;
@@ -6099,10 +6112,13 @@ function startTrainerConfetti(){
   });
 }
 function pickDayDecision(finished){
-  G.dayFinished=finished;
-  flightLog.dayFinished=finished;
+  // 21 Oct 2026: 'split' = split duty. In the game it behaves like "finished" (end-of-duty tasks);
+  // the next flight today starts like a new duty. Stored as 'split' so it's never read as "day finished".
+  const split=finished==='split';
+  G.dayFinished=split?true:finished;
+  flightLog.dayFinished=split?'split':finished;
   // derive flightType label for the logbook
-  flightLog.flightType=G.isFirstFlight?(finished?'single':'first'):(finished?'last':'middle');
+  flightLog.flightType=G.isFirstFlight?(G.dayFinished?'single':'first'):(G.dayFinished?'last':'middle');
   const pop=document.getElementById('popup');
   pop.classList.remove('active');pop.classList.remove('daydeco');G.popOpen=false;
   cancelAnimationFrame(ddConfettiAnim);
@@ -7379,7 +7395,7 @@ function finishFlight(){
   let prevBestCBE=null,prevBestScore=null;
   data.sectors.forEach(s=>{if(prevBestCBE===null||s.cbeIndex>prevBestCBE)prevBestCBE=s.cbeIndex;if(prevBestScore===null||s.score>prevBestScore)prevBestScore=s.score;});
   flightLog._newRecord = (prevBestCBE===null||cbeIdx>prevBestCBE)||(prevBestScore===null||combined>prevBestScore);
-  const pushedSector={dep:flightLog.dep,arr:flightLog.arr,date:flightLog.date,depTime:flightLog.depTime,arrTime:flightLog.arrTime,ac:flightLog.acType,reg:flightLog.reg,totalTime:flightLog.totalTime,pax:flightLog.pax,pf:flightLog.pf,legNum:flightLog.legNum,takeoverFuel:flightLog.takeoverFuel!=null?flightLog.takeoverFuel:null,score:combined,rawScore:raw,tasks,cbeIndex:cbeIdx,perfect:isPerfect,training:!!flightLog.isTraining,trainBonus:trainBonus,playMs:G.playMs||0,monthKey:flightLog.monthKey,dayFinished:(flightLog.dayFinished!=null?!!flightLog.dayFinished:null),timestamp:Date.now(),choices:G.choices.map(ch=>({task:ch.task,pts:ch.pts}))};
+  const pushedSector={dep:flightLog.dep,arr:flightLog.arr,date:flightLog.date,depTime:flightLog.depTime,arrTime:flightLog.arrTime,ac:flightLog.acType,reg:flightLog.reg,totalTime:flightLog.totalTime,pax:flightLog.pax,pf:flightLog.pf,legNum:flightLog.legNum,takeoverFuel:flightLog.takeoverFuel!=null?flightLog.takeoverFuel:null,score:combined,rawScore:raw,tasks,cbeIndex:cbeIdx,perfect:isPerfect,training:!!flightLog.isTraining,trainBonus:trainBonus,playMs:G.playMs||0,monthKey:flightLog.monthKey,dayFinished:(flightLog.dayFinished==='split'?'split':(flightLog.dayFinished!=null?!!flightLog.dayFinished:null)),timestamp:Date.now(),choices:G.choices.map(ch=>({task:ch.task,pts:ch.pts}))};
   // If this same leg/date was previously logged as a manual placeholder (e.g. by the 17 Jul
   // seed, before it was actually played in-game), drop that placeholder now — otherwise the
   // logbook shows a confusing duplicate "MANUAL" row alongside this real, scored one.
