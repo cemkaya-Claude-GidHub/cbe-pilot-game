@@ -803,7 +803,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
   <div class="pf-modal">
     <div class="pf-head"><h3>✎ EDIT SECTOR DETAILS</h3><button class="pf-close" onclick="pfClose('pfEditSectorModal')">✕</button></div>
     <div class="pf-body">
-      <div class="pf-hint" style="margin-bottom:10px;">Correct a wrong entry after the fact — score, CBE Index, and training bonus for this sector are untouched.</div>
+      <div class="pf-hint" style="margin-bottom:10px;">Correct a wrong entry after the fact. The score only changes if you change an after-flight answer below.</div>
       <div class="pf-row">
         <div class="pf-g"><label>Departure (ICAO)</label><input id="es_dep" maxlength="4" style="text-transform:uppercase;" list="dep-list" placeholder="e.g. EGTK" autocomplete="off"></div>
         <div class="pf-g"><label>Block Off (UTC)</label><input type="time" id="es_deptime"></div>
@@ -816,6 +816,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
         <div class="pf-g"><label>Registration</label><input id="es_reg" maxlength="8" list="reg-list" placeholder="e.g. 9H-VCX" autocomplete="off"></div>
         <div class="pf-g"><label>Other pilot / crew</label><input id="es_crew" list="es-crew-list" placeholder="e.g. F/O name"><datalist id="es-crew-list"></datalist></div>
       </div>
+      <div id="es_after"></div>
     </div>
     <div class="pf-foot">
       <button class="pf-btn cancel" style="background:#fff;border:1px solid #b5483d;color:#b5483d;flex:1;" onclick="pfDeleteSectorEdit()">Delete Flight</button>
@@ -936,7 +937,7 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div class="fl-field"><span class="fl-label">Reg ✎</span><input class="fl-input fl-editable" type="text" id="fl-reg" placeholder="tap to type…" maxlength="8" list="reg-list" autocomplete="off" style="padding:6px 4px;font-size:12px;height:38px;min-width:0;width:100%;background:#fffbe6;"><datalist id="reg-list"></datalist><span class="fl-hint" id="fl-reg-hint" style="font-size:9px;">✎ tap to enter / change</span></div>
     </div>
     <div class="fl-grid" style="grid-template-columns:1fr 1fr 1fr;background:#f4f8ff;border:1px solid #cdddee;border-radius:4px;padding:8px;margin-bottom:10px;">
-      <div class="fl-field"><span class="fl-label">🛫 First flight of the day?</span>
+      <div class="fl-field"><span class="fl-label">🛫 First flight of the duty?</span>
         <select class="fl-input" id="fl-flighttype">
           <option value="first">YES</option>
           <option value="notfirst">NO</option>
@@ -3078,7 +3079,16 @@ function mergeIncomingDayData(existingDay,incomingDay){
   (incomingDay.stops||[]).forEach((inS,ii)=>{
     const match=stopMatch[ii];
     if(!match){ mergedStops.push({...inS}); return; }
+    // 22 Oct 2026: a later pack that only covers part of the day (e.g. the evening LIML→LFPB pack)
+    // must not overwrite what an earlier pack really read: its "price not stated → €100 fallback"
+    // replaced LFPB's real "toilet 1st service FREE then €90", and its "preflight" label turned the
+    // LIML split stop into a preflight. Phase/label follow the stop's place in the whole day, and a
+    // €100 fallback never replaces a real price (nor clears a "1st service free" flag).
+    const SVC={toiletPrice:'toiletFirstFree',waterPrice:'waterFirstFree',gpuPrice:null};
+    const keepSvc=new Set();
+    Object.keys(SVC).forEach(k=>{ if(Number(inS[k])===100&&match[k]!=null&&Number(match[k])!==100){ keepSvc.add(k); if(SVC[k]) keepSvc.add(SVC[k]); } });
     Object.keys(inS).forEach(k=>{
+      if(k==='phase'||k==='label'||k==='id'||keepSvc.has(k)) return;
       if(k==='notams'){
         const existingIds=new Set((match.notams||[]).map(n=>n.id));
         match.notams=[...(match.notams||[]),...(inS.notams||[]).filter(n=>!existingIds.has(n.id))];
@@ -3141,7 +3151,8 @@ function clLoadTranscribed(){
     // fallback (the locked settings value) applies automatically, same as before this feature.
     const usgToLtr=3.785411784;
     const fxRate=(s.fuelPrice>0&&s.fuelPriceUsgUsd>0)?(s.fuelPrice/(s.fuelPriceUsgUsd/usgToLtr)):undefined;
-    return {...s,id:prev.id||clUid(),fxRate,
+    const phase=i===0?'preflight':(isLastStop?'postflight':'turnaround'); // 22 Oct 2026: by position in the day
+    return {...s,phase,id:prev.id||clUid(),fxRate,
       split:!!prev.split,splitPostUnder40:prev.splitPostUnder40,splitPostNotReq:prev.splitPostNotReq,
       apuUnder40:prev.apuUnder40!=null?prev.apuUnder40:null,
       apuNotRequired:prev.apuNotRequired!=null?prev.apuNotRequired:null,
@@ -5471,9 +5482,9 @@ const TASKS=[
   {id:'movm_takeoff',wx:2408,phase:'🛫 TAKEOFF',icon:'🤲',when:'every',q:'MOVEMENT MSG at TAKEOFF (sent automatically)',
    note:'This message is sent automatically at takeoff — no action needed from you.',
    c:[{l:'OK ✓',p:0,i:'📤',d:'Auto-sent'},{l:'NOTED',p:0,i:'👍',d:'Auto-sent'}]},
-  {id:'fuel_enroute',wx:2513,phase:'✈️ IN FLIGHT',icon:'📚',when:'every',q:'FUEL SAVING ENROUTE (planned vs real)?',
+  {id:'fuel_enroute',wx:2513,phase:'✈️ IN FLIGHT',icon:'📚',when:'every',q:'FUEL-CHECK (FUEL SAVING ENROUTE - planned vs real)?',
    c:[{l:'YES ✓',p:20,i:'⛽',d:'+20!'},{l:'NO',p:0,i:'🔥',d:'Normal.'}]},
-  {id:'flight_time',wx:2618,phase:'✈️ IN FLIGHT',icon:'📚',when:'every',q:'FLIGHT TIME REDUCED ENROUTE (planned vs real)?',
+  {id:'flight_time',wx:2618,phase:'✈️ IN FLIGHT',icon:'📚',when:'every',q:'FLIGHT TIME-CHECK (FLIGHT TIME REDUCED ENROUTE - planned vs real)?',
    c:[{l:'YES ✓',p:20,i:'⏱️',d:'+20!'},{l:'NO',p:0,i:'🗺️',d:'No.'}]},
   {id:'non_sop',training:true,wx:2723,phase:'✈️ IN FLIGHT',icon:'👮',when:'every',q:'NON-SOP OPERATION occurred?',
    c:[{l:'NO — all SOP ✓',p:0,i:'✅',d:'OK.'},{l:'YES',p:-50,i:'⚠️',d:'-50!'}]},
@@ -5664,7 +5675,9 @@ function initWorld(){
   G.apronAC=[{x:950,y:352,dir:1,spd:0.35,type:'big'},{x:1450,y:366,dir:-1,spd:0.22,type:'small'},{x:1150,y:358,dir:1,spd:0.28,type:'small'},{x:1700,y:360,dir:-1,spd:0.18,type:'big'},{x:3650,y:360,dir:-1,spd:0.25,type:'small'},{x:3950,y:354,dir:1,spd:0.2,type:'big'}];
   G.skyTraffic=[{x:900,y:70,spd:2.2,dir:1,size:1.0},{x:200,y:130,spd:1.4,dir:-1,size:0.7},{x:600,y:45,spd:2.8,dir:1,size:1.2},{x:-200,y:170,spd:1.8,dir:1,size:0.8}];
   const ft=flightLog.flightType||'first';   // 'first' | 'notfirst'
-  const isFirst=(ft==='first');
+  // 21 Oct 2026: the first flight after a split duty always starts a new duty (transport, briefing),
+  // even if "first flight" was answered NO — Cem answered NO (not the first flight of the DAY) and lost the transport question.
+  const isFirst=(ft==='first')||clAfterSplit(flightLog.date);
   G.isFirstFlight=isFirst;
   G.dayFinished=null;   // unknown until the in-game "day finished?" decision
   // 21 Sep 2026: was a single "tail change" checkbox gating BOTH the takeover message (first
@@ -7238,7 +7251,7 @@ function loop(ts){
         const w=t.when||'every';
         // gate firstmid (turnaround) and last tasks by the day-finished decision
         if(w==='firstmid')return G.dayFinished===false;   // first/middle only (not last)
-        if(w==='last')return G.dayFinished===true;          // only when day is finished
+        if(w==='last')return G.dayFinished===true&&!(t.id==='late_checkout'&&flightLog.dayFinished==='split'); // only when day is finished; 22 Oct 2026: no late checkout on a split-duty break
         return true;
       });
       // Some tasks only make sense given how an earlier task was answered (e.g. "slot missed
@@ -8789,6 +8802,7 @@ function openQuickFlightModal(){
 // were already editable via pfEditQuickFlight (that path recomputes score:0, which is fine
 // for manual entries but would destroy real CBE data — so this is a separate, minimal path).
 let EDIT_SECTOR_TS=null;
+const ES_AFTER_TASKS=['transp_ah','late_checkout'];
 function editSectorClick(ts){
   const s=(DB.sectors||[]).find(x=>x.timestamp===ts);
   if(!s)return;
@@ -8803,6 +8817,19 @@ function editSectorClick(ts){
   set('es_crew',s.crew||'');
   const crewDl=document.getElementById('es-crew-list');
   if(crewDl){crewDl.innerHTML='';(DB.crewNames||[]).forEach(c=>{const o=document.createElement('option');o.value=c;crewDl.appendChild(o);});}
+  // 22 Oct 2026 (Cem): answers that are often only known after the game was played — the
+  // transport to the hotel (Uber didn't come → taxi/handling) and the late checkout (negotiated
+  // at the hotel). Only shown when the flight actually has that question; changing it re-scores the flight.
+  const after=document.getElementById('es_after');
+  if(after){
+    const rows=ES_AFTER_TASKS.map(id=>{
+      const ch=(s.choices||[]).find(c=>c.task===id), t=TASKS.find(x=>x.id===id);
+      if(!ch||!t)return '';
+      return `<div class="pf-g" style="margin-top:8px;"><label>${id==='transp_ah'?'🚕 Transport airport → hotel':'🏨 Late checkout vs 2-night stay'}</label>
+        <select data-task="${id}" class="es-after-sel" style="padding:8px;font-size:13px;">${t.c.map(o=>`<option value="${o.p}"${o.p===ch.pts?' selected':''}>${o.l} (${o.p>0?'+':''}${o.p} pts)</option>`).join('')}</select></div>`;
+    }).join('');
+    after.innerHTML=rows?`<div class="pf-div" style="margin-top:12px;">After the flight</div>${rows}`:'';
+  }
   pfOpen('pfEditSectorModal');
 }
 function pfSaveSectorEdit(){
@@ -8820,6 +8847,16 @@ function pfSaveSectorEdit(){
   if(depTime&&arrTime){const tt=calcTotalFromTimes(depTime,arrTime);if(tt)s.totalTime=tt;}
   const reg=normReg(g('es_reg'));if(reg)s.reg=reg;
   const crew=g('es_crew');s.crew=crew||undefined;
+  // 22 Oct 2026: changed after-flight answers → re-score this flight
+  document.querySelectorAll('#es_after .es-after-sel').forEach(sel=>{
+    const ch=(s.choices||[]).find(c=>c.task===sel.dataset.task); if(!ch)return;
+    const np=Number(sel.value), delta=np-(ch.pts||0); if(!delta)return;
+    ch.pts=np;
+    s.rawScore=(s.rawScore!=null?s.rawScore:((s.score||0)-(s.trainBonus||0)))+delta;
+    s.score=s.rawScore+(s.trainBonus||0);
+    if(typeof s.tasks==='number'&&s.tasks>0) s.cbeIndex=parseFloat((s.score/s.tasks).toFixed(2));
+    s.perfect=(s.choices||[]).every(c=>(c.pts||0)>=0);
+  });
   if(s.reg){DB.regNames=DB.regNames||[];const i=DB.regNames.indexOf(s.reg);if(i>=0)DB.regNames.splice(i,1);DB.regNames.unshift(s.reg);}
   if(crew){DB.crewNames=DB.crewNames||[];const ci=DB.crewNames.indexOf(crew);if(ci>=0)DB.crewNames.splice(ci,1);DB.crewNames.unshift(crew);}
   saveData(DB);
