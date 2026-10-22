@@ -3179,6 +3179,7 @@ function clLoadTranscribed(){
       toiletChoice:prev.toiletChoice!=null?prev.toiletChoice:null,
       waterChoice:prev.waterChoice!=null?prev.waterChoice:null};
   });
+  clFillRepeatAirportPrices(CL_STATE.stops);
   clDropUnflownLegs(dateStr);
   clSaveState(); clRenderStops(); clCompute(); clRenderLegs();
   return {ok:true,message:'📋 Teclog/OFP: filled in prices and OFP figures for '+dateStr+'.'+(CL_STATE.notFlown&&CL_STATE.notFlown.length?' ✈ Not flown: '+CL_STATE.notFlown.map(x=>x.from+'→'+x.to+' ('+x.reason+')').join(', ')+' — not counted.':'')};
@@ -3215,6 +3216,19 @@ function clDropUnflownLegs(dateStr){
   });
   stops.forEach((st,i)=>{ st.phase=i===0?'preflight':(i===stops.length-1?'postflight':'turnaround'); if(i===0||i===stops.length-1) st.split=false; });
   CL_STATE.legs=keep; CL_STATE.stops=stops;
+}
+// 22 Oct 2026: a Brief lists each airport's services once. When the same airport comes twice in a
+// day (LFPB → LIML → LFPB), the second visit was read as "not stated → €100 fallback". Copy the
+// real toilet/water/GPU prices (and the "1st service free" flags) from the other visit instead.
+function clFillRepeatAirportPrices(stops){
+  const isFb=st=>/fallback|not stated|do not state|not state/i.test(st.note||'');
+  (stops||[]).forEach(st=>{
+    if(!isFb(st)) return;
+    const src=stops.find(o=>o!==st&&o.airport===st.airport&&!isFb(o)); if(!src) return;
+    ['toiletPrice','waterPrice','gpuPrice'].forEach(k=>{ if(Number(st[k])===100&&src[k]!=null) st[k]=src[k]; });
+    ['toiletFirstFree','waterFirstFree'].forEach(k=>{ if(src[k]!=null) st[k]=src[k]; });
+    st.note=(st.note||'')+' · service prices taken from the earlier '+st.airport+' visit today';
+  });
 }
 function clLoadState(){
   try{ const raw=localStorage.getItem('cbe_cost_ledger_day'); return raw?JSON.parse(raw):clDefaultState(); }
@@ -3984,8 +3998,8 @@ function clRenderLegs(){
         <div><span style="color:#9fb0bd;">APU late-on (in):</span> ${l.apuNotStartedIn===true?'<span style="color:#16c79a;">✓ not started at all</span>':clBadge(l.apuLateIn,'late','no')}</div>
       </div>
       <div class="cl-grid c2" style="margin-top:4px;font-size:11px;">
-        <div><span style="color:#9fb0bd;">Toilet at cheaper airport:</span> ${l.toiletChoice==null?'<span style="color:#16c79a;">no game data yet</span>':l.toiletChoice==='na'?'<span style="color:#16c79a;">not required</span>':l.toiletChoice==='yes'?'<span style="color:#16c79a;">✓ yes</span>':'<span style="color:#16c79a;">✗ no</span>'}</div>
-        <div><span style="color:#9fb0bd;">Water at cheaper airport:</span> ${l.waterChoice==null?'<span style="color:#16c79a;">no game data yet</span>':l.waterChoice==='na'?'<span style="color:#16c79a;">not required</span>':l.waterChoice==='yes'?'<span style="color:#16c79a;">✓ yes</span>':'<span style="color:#16c79a;">✗ no</span>'}</div>
+        <div><span style="color:#9fb0bd;">Toilet:</span> ${l.toiletChoice==null?'<span style="color:#16c79a;">no game data yet</span>':l.toiletChoice==='na'?'<span style="color:#16c79a;">not required</span>':l.toiletChoice==='yes'?'<span style="color:#16c79a;">✓ at the cheaper airport</span>':'<span style="color:#ffb84d;">at the more expensive airport</span>'}</div>
+        <div><span style="color:#9fb0bd;">Water:</span> ${l.waterChoice==null?'<span style="color:#16c79a;">no game data yet</span>':l.waterChoice==='na'?'<span style="color:#16c79a;">not required</span>':l.waterChoice==='yes'?'<span style="color:#16c79a;">✓ at the cheaper airport</span>':'<span style="color:#ffb84d;">at the more expensive airport</span>'}</div>
       </div>
     </div>
   `).join('');
@@ -5418,7 +5432,7 @@ function getScene(wx){return SCENES.find(s=>wx>=s.from&&wx<s.to)||SCENES[0];}
 
 const TASKS=[
   {id:'transp_ha',wx:200,phase:'🚗 TRANSPORT',icon:'🚕',when:'first',q:'Transport Hotel → Airport',
-   c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'},{l:'NO TRANSPORT',p:0,i:'🏢',d:'Stayed at airport'}]},
+   c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'FREE SHUTTLE',p:30,i:'🚌',d:'Free transport · +30!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'},{l:'NO TRANSPORT',p:0,i:'🏢',d:'Stayed at airport'}]},
   {id:'movm_transport',wx:305,phase:'🚗 TRANSPORT',icon:'🏃',when:'first',q:'MOVEMENT MSG sent? (crew in transport)',
    c:[{l:'YES ✓',p:0,i:'📤',d:'Sent!'},{l:'NO',p:-20,i:'😬',d:'-20!'}]},
   {id:'upload_flightpack',wx:350,phase:'🚗 TRANSPORT',icon:'📎',when:'every',isFileUpload:true,
@@ -5456,10 +5470,10 @@ const TASKS=[
    c:[{l:'NO — under 40 ✓',p:30,i:'✅',d:'+30!'},{l:'YES — over 40',p:0,i:'⏰',d:'Wasted.'}]},
   {id:'fuel_tankering',training:true,wx:1251,phase:'⛽ TANKERING',icon:'💰',when:'every',note:'Optional — pilot\'s discretion. Check takeoff/landing performance limits before tankering extra fuel.',q:'FUEL SAVING by TANKERING? (in addition to OFP, to save time/money)',
    c:[{l:'YES ✓',p:100,i:'💰',d:'+100!'},{l:'NO',p:0,i:'⛽',d:'Optional — skipped'},{l:'FUEL NOT REQUIRED (remaining fuel)',p:0,i:'⛽',d:'',nopts:true}]},
-  {id:'toilet_svc',wx:1356,phase:'🚾 SERVICE',icon:'🚾',when:'every',note:'Common sense — pilot\'s discretion',q:'TOILET SERVICE at cheaper airport?',
-   c:[{l:'YES ✓',p:50,i:'✅',d:'+50!'},{l:'NO',p:0,i:'🚽',d:'Optional — skipped'},{l:'NOT REQUIRED',p:0,i:'🚽',d:'',nopts:true}]},
-  {id:'water_svc',wx:1462,phase:'💦 SERVICE',icon:'💦',when:'every',note:'Common sense — pilot\'s discretion',q:'WATER SERVICE at cheaper airport?',
-   c:[{l:'YES ✓',p:50,i:'✅',d:'+50!'},{l:'NO',p:0,i:'💧',d:'Optional — skipped'},{l:'NOT REQUIRED',p:0,i:'💧',d:'',nopts:true}]},
+  {id:'toilet_svc',wx:1356,phase:'🚾 SERVICE',icon:'🚾',when:'every',note:'Common sense — pilot\'s discretion',q:'TOILET SERVICE — where was it done?',
+   c:[{l:'AT THE CHEAPER AIRPORT',p:50,i:'✅',d:'+50!'},{l:'AT THE MORE EXPENSIVE AIRPORT',p:0,i:'💸',d:'No saving'},{l:'NOT REQUIRED',p:0,i:'⛔',d:'',nopts:true}]},
+  {id:'water_svc',wx:1462,phase:'💦 SERVICE',icon:'💦',when:'every',note:'Common sense — pilot\'s discretion',q:'WATER SERVICE — where was it done?',
+   c:[{l:'AT THE CHEAPER AIRPORT',p:50,i:'✅',d:'+50!'},{l:'AT THE MORE EXPENSIVE AIRPORT',p:0,i:'💸',d:'No saving'},{l:'NOT REQUIRED',p:0,i:'⛔',d:'',nopts:true}]},
   {id:'movm_pax30',wx:1567,phase:'👥 BOARDING',icon:'🤲',when:'every',q:'MOVEMENT MSG: ready 30min before departure?',
    c:[{l:'YES ✓',p:0,i:'📤',d:'Sent!'},{l:'NO',p:-20,i:'😤',d:'-20!'}]},
   {id:'pax_late',paxOnly:true,wx:1672,phase:'👥 BOARDING',icon:'⏰',when:'every',q:'Were PAX LATE for boarding?',
@@ -5513,7 +5527,7 @@ const TASKS=[
   {id:'clean_ac',wx:3879,phase:'🧹 POST FLIGHT',icon:'🧹',when:'last',handoverOnly:true,q:'A/C CLEANED for incoming crew?',
    c:[{l:'YES ✓',p:0,i:'✨',d:'Ready!'},{l:'NO',p:-20,i:'😤',d:'-20!'}]},
   {id:'transp_ah',wx:3985,phase:'🚗 TRANSPORT',icon:'🚕',when:'last',q:'Transport Airport → Hotel',
-   c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'},{l:'NO TRANSPORT',p:0,i:'🏢',d:'Stayed at airport'}]},
+   c:[{l:'UBER/BOLT',p:20,i:'🚗',d:'+20!'},{l:'FREE SHUTTLE',p:30,i:'🚌',d:'Free transport · +30!'},{l:'TAXI',p:-10,i:'🚕',d:'-10'},{l:'HANDLING',p:-20,i:'🚐',d:'-20'},{l:'NO TRANSPORT',p:0,i:'🏢',d:'Stayed at airport'}]},
   {id:'crew_debrief',wx:4090,phase:'🏨 HOTEL',icon:'👨‍✈️',when:'last',q:'Crew debrief done after flight day?',
    c:[{l:'YES ✓',p:0,i:'✅',d:'Done!'},{l:'NO',p:-20,i:'❌',d:'-20!'}]},
   {id:'dayops',training:true,wx:3620,phase:'🏨 HOTEL',icon:'🛫',when:'every',q:'FLIGHT/FLIGHT OPS maintained (happy with your performance)?',
@@ -5688,7 +5702,7 @@ function initWorld(){
   const handingOver=!!flightLog.isHandover;
   const afterSplit=isFirst&&clAfterSplit(flightLog.date); // 21 Oct 2026: same aircraft, fuel already known
   G.tQueue=[...TASKS].filter(t=>{
-    if(afterSplit&&(t.id==='fuel_takeover'||t.id==='to_handover'))return false;
+    if(afterSplit&&(t.id==='fuel_takeover'||t.id==='to_handover'||t.id==='tire_pressure'))return false; // 22 Oct 2026: tire pressure only on the first flight of the DAY
     if(t.takeoverOnly && !takingOver)return false;
     if(t.handoverOnly && !handingOver)return false;
     // PAX-only tasks: skip on ferry (non-pax) flights
@@ -7220,6 +7234,14 @@ function pickInfoDisplay(){
   resumePendingTask();
 }
 
+// is this task still going to be asked on this flight? (same gates as the task picker below)
+function clTaskOpen(t){
+  const w=t.when||'every';
+  if(w==='firstmid') return G.dayFinished!==true;
+  if(w==='last') return G.dayFinished!==false&&!(t.id==='late_checkout'&&flightLog.dayFinished==='split');
+  if(t.skipIf&&t.skipIf(G.choices)) return false;
+  return true;
+}
 let lastT=0;
 function loop(ts){
   if(!G.running)return;G.tick++;lastT=ts;const cam=camX();
@@ -7233,7 +7255,13 @@ function loop(ts){
       if(G.worldX>=2440&&G.worldX<2820)spd=WALK_SPD*GAME_SPEED*0.33;
       // On a continuing flight (not last), speed up the empty wind-down walk after the final task
       else if(G.dayFinished===false&&G.worldX>=3640)spd=WALK_SPD*GAME_SPEED*2.6;
-      G.worldX+=spd;
+      // 22 Oct 2026 (Cem): at x2 the walk kept going while a result was shown, so the aircraft was
+      // already airborne when "movement msg" / "single-engine taxi" was asked. Never walk past the
+      // next unanswered question (or the day-finished decision) — the scene always matches the question.
+      let stopAt=Infinity;
+      G.tQueue.forEach(t=>{ if(!G.done.has(t.id)&&clTaskOpen(t)&&t.wx<stopAt) stopAt=t.wx; });
+      if(G.dayFinished===null) stopAt=Math.min(stopAt,DECISION_WX);
+      G.worldX=Math.min(G.worldX+spd,Math.max(G.worldX,stopAt));
     }
     G.apronAC.forEach(ac=>{ac.x+=ac.spd*ac.dir;if(ac.x>2100)ac.dir=-1;if(ac.x<720)ac.dir=1;});
     G.clouds.forEach(cl=>{cl.x+=cl.spd;});
@@ -7408,7 +7436,7 @@ function finishFlight(){
   let prevBestCBE=null,prevBestScore=null;
   data.sectors.forEach(s=>{if(prevBestCBE===null||s.cbeIndex>prevBestCBE)prevBestCBE=s.cbeIndex;if(prevBestScore===null||s.score>prevBestScore)prevBestScore=s.score;});
   flightLog._newRecord = (prevBestCBE===null||cbeIdx>prevBestCBE)||(prevBestScore===null||combined>prevBestScore);
-  const pushedSector={dep:flightLog.dep,arr:flightLog.arr,date:flightLog.date,depTime:flightLog.depTime,arrTime:flightLog.arrTime,ac:flightLog.acType,reg:flightLog.reg,totalTime:flightLog.totalTime,pax:flightLog.pax,pf:flightLog.pf,legNum:flightLog.legNum,takeoverFuel:flightLog.takeoverFuel!=null?flightLog.takeoverFuel:null,score:combined,rawScore:raw,tasks,cbeIndex:cbeIdx,perfect:isPerfect,training:!!flightLog.isTraining,trainBonus:trainBonus,playMs:G.playMs||0,monthKey:flightLog.monthKey,dayFinished:(flightLog.dayFinished==='split'?'split':(flightLog.dayFinished!=null?!!flightLog.dayFinished:null)),timestamp:Date.now(),choices:G.choices.map(ch=>({task:ch.task,pts:ch.pts}))};
+  const pushedSector={dep:flightLog.dep,arr:flightLog.arr,date:flightLog.date,depTime:flightLog.depTime,arrTime:flightLog.arrTime,ac:flightLog.acType,reg:flightLog.reg,totalTime:flightLog.totalTime,pax:flightLog.pax,pf:flightLog.pf,legNum:flightLog.legNum,takeoverFuel:flightLog.takeoverFuel!=null?flightLog.takeoverFuel:null,score:combined,rawScore:raw,tasks,cbeIndex:cbeIdx,perfect:isPerfect,training:!!flightLog.isTraining,trainBonus:trainBonus,playMs:G.playMs||0,monthKey:flightLog.monthKey,dayFinished:(flightLog.dayFinished==='split'?'split':(flightLog.dayFinished!=null?!!flightLog.dayFinished:null)),timestamp:Date.now(),choices:G.choices.map(ch=>({task:ch.task,pts:ch.pts,label:ch.label}))}; // 22 Oct 2026: label kept — "NOT REQUIRED" and "NO" both score 0, only the label tells them apart
   // If this same leg/date was previously logged as a manual placeholder (e.g. by the 17 Jul
   // seed, before it was actually played in-game), drop that placeholder now — otherwise the
   // logbook shows a confusing duplicate "MANUAL" row alongside this real, scored one.
@@ -8141,11 +8169,13 @@ function exportPDF(style,includeCBE,range){
     const sc=s.score||0;
     const blM=toMins(s.totalTime);
     const isNight=(s.landing||'').toUpperCase()==='NIGHT';
-    const isPIC=!!s.pf;
-    tBlock+=blM;tIFR+=blM;tME+=blM;tJET+=blM;
+    // 22 Oct 2026 (Cem): PIC time = whole block time when your FUNCTION was PIC/PICUS — no matter
+    // who was pilot flying (PF only decides the landing). Before, PIC time was given only on PF sectors.
+    const FR=lbFnRules(s), isPIC=FR.isPIC;
+    tBlock+=blM;if(FR.isIFR)tIFR+=blM;tME+=blM;tJET+=blM;
     if(isPIC)tPIC+=blM;
     if(s.pf)tPF++;
-    if(isNight)tNight++;else tDay++;
+    if(s.pf){ if(isNight)tNight++;else tDay++; } // 22 Oct 2026: a landing counts only when you were PF
     const fmtB=s.totalTime||'-';
     let lx=M;const ws=LC.map(c=>c.w);
     const put=(val,o)=>{o=o||{};o.pad=o.pad||3.5;cell(lx,ly2,ws[put._i],LOG_RH,val,o);if(put._i<LC.length-1)p.line(lx+ws[put._i],ly2,lx+ws[put._i],ly2+LOG_RH,...RULE_LT,0.25);lx+=ws[put._i];put._i++;};
@@ -8160,9 +8190,9 @@ function exportPDF(style,includeCBE,range){
     put(fmtB,{sz:7,col:DK,bold:true,center:true});
     put(s.crew||(s.manual?'-':'SELF'),{sz:6,col:MED});
     put(s.pf?'X':'',{sz:7,col:ACCENT,bold:true,center:true});
-    put(isNight?'':'1',{sz:6.3,col:DK,center:true});
-    put(isNight?'1':'',{sz:6.3,col:ACCENT,bold:true,center:true});
-    put(fmtB,{sz:6.3,col:DK,center:true});
+    put(s.pf&&!isNight?'1':'',{sz:6.3,col:DK,center:true});
+    put(s.pf&&isNight?'1':'',{sz:6.3,col:ACCENT,bold:true,center:true});
+    put(FR.isIFR?fmtB:'-',{sz:6.3,col:DK,center:true});
     put(fmtB,{sz:6.3,col:DK,center:true});
     put(fmtB,{sz:6.3,col:DK,bold:true,center:true});
     put(isPIC?fmtB:'-',{sz:6.3,col:isPIC?GREEN:GREY,center:true});
@@ -8622,6 +8652,20 @@ function lbTypeKey(name){
     if(full.toUpperCase().replace(/[^A-Z0-9]/g,'')===u||code===u||(u.length>code.length&&u.startsWith(code)&&/^\d+$/.test(u.slice(code.length)))) return code; }
   return u;
 }
+// 22 Oct 2026 (Cem): function + IFR/VFR of ONE flight, for the logbook PDF — same source as the
+// lifetime totals: the flight itself, else its logbook page, else IFR + your rank (PIC / co-pilot).
+function lbFnRules(x){
+  let fn=x.function||'', rules=x.rules||'';
+  if(!(fn&&rules)&&!x.manual){
+    const xi=clDateToISO(x.date);
+    const e=(DB.personalLog||[]).filter(p=>(p.date===x.date||clDateToISO(p.date)===xi)&&(p.dep||'').toUpperCase()===(x.dep||'').toUpperCase()&&(p.arr||'').toUpperCase()===(x.arr||'').toUpperCase())
+      .sort((p,q)=>Math.abs((p.timestamp||0)-(x.timestamp||0))-Math.abs((q.timestamp||0)-(x.timestamp||0)))[0];
+    if(e){ fn=fn||e.function||''; rules=rules||e.rules||''; }
+  }
+  if(!rules) rules='IFR';
+  if(!fn) fn=(tbLoadRank()==='SIC'?'COPI':'PIC');
+  return {fn,rules,isPIC:/(^|[^A-Z])PIC(US)?([^A-Z]|$)/.test(fn.toUpperCase()),isIFR:/^IFR$/i.test(rules)};
+}
 function lbTotals(){
   const b=(DB.profile&&DB.profile.baselineTotals)||{};
   const sectors=(DB.sectors||[]).filter(x=>x&&x.dep&&x.arr);
@@ -8828,7 +8872,15 @@ function editSectorClick(ts){
       return `<div class="pf-g" style="margin-top:8px;"><label>${id==='transp_ah'?'🚕 Transport airport → hotel':'🏨 Late checkout vs 2-night stay'}</label>
         <select data-task="${id}" class="es-after-sel" style="padding:8px;font-size:13px;">${t.c.map(o=>`<option value="${o.p}"${o.p===ch.pts?' selected':''}>${o.l} (${o.p>0?'+':''}${o.p} pts)</option>`).join('')}</select></div>`;
     }).join('');
-    after.innerHTML=rows?`<div class="pf-div" style="margin-top:12px;">After the flight</div>${rows}`:'';
+    // 22 Oct 2026: until today the game lost the difference between "NO" and "NOT REQUIRED" for
+    // toilet/water (both 0 points). Both score 0, so switching between them changes only the money.
+    const svc=['toilet_svc','water_svc'].map(id=>{
+      const ch=(s.choices||[]).find(c=>c.task===id); if(!ch||ch.pts!==0)return '';
+      const na=ch.label==='NOT REQUIRED';
+      return `<div class="pf-g" style="margin-top:8px;"><label>${id==='toilet_svc'?'🚾 Toilet service':'💧 Water service'}</label>
+        <select data-svc="${id}" class="es-svc-sel" style="padding:8px;font-size:13px;"><option value="AT THE MORE EXPENSIVE AIRPORT"${na?'':' selected'}>AT THE MORE EXPENSIVE AIRPORT</option><option value="NOT REQUIRED"${na?' selected':''}>NOT REQUIRED</option></select></div>`;
+    }).join('');
+    after.innerHTML=(rows||svc)?`<div class="pf-div" style="margin-top:12px;">After the flight</div>${rows}${svc}`:'';
   }
   pfOpen('pfEditSectorModal');
 }
@@ -8847,6 +8899,9 @@ function pfSaveSectorEdit(){
   if(depTime&&arrTime){const tt=calcTotalFromTimes(depTime,arrTime);if(tt)s.totalTime=tt;}
   const reg=normReg(g('es_reg'));if(reg)s.reg=reg;
   const crew=g('es_crew');s.crew=crew||undefined;
+  document.querySelectorAll('#es_after .es-svc-sel').forEach(sel=>{
+    const ch=(s.choices||[]).find(c=>c.task===sel.dataset.svc); if(ch&&ch.pts===0) ch.label=sel.value;
+  });
   // 22 Oct 2026: changed after-flight answers → re-score this flight
   document.querySelectorAll('#es_after .es-after-sel').forEach(sel=>{
     const ch=(s.choices||[]).find(c=>c.task===sel.dataset.task); if(!ch)return;
