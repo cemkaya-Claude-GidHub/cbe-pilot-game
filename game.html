@@ -1117,33 +1117,35 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
     <div class="cl-scroll">
       <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;">① YOUR DETAILS</div>
       <div class="cl-grid c2" style="margin-bottom:10px;">
-        <div class="cl-fld"><label>Basic yearly salary € (from your contract)</label><input type="number" id="pb-salaryField" placeholder="e.g. 120000" onchange="pbSetSalary(this.value)"></div>
         <div class="cl-fld"><label>Month</label><input type="month" id="pb-monthField" onchange="pbSetMonth(this.value)"></div>
         <div class="cl-fld"><label>Rank (sets the value of 1 free day)</label><select id="pb-rankField" onchange="tbSetRank(this.value)" style="background:#0d1e28;border:1px solid #234;color:#fff;border-radius:4px;padding:6px;"><option value="PIC">PIC — €600 per free day</option><option value="SIC">SIC — €300 per free day</option></select></div>
       </div>
 
-      <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;">② YOUR BONUS FOR THIS MONTH</div>
+      <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;">② YOUR CREW DIVIDEND THIS MONTH</div>
       <div class="cl-tape">
-        <div class="c non"><div class="k">CBE Index this month</div><div class="v" id="pb-index">—</div></div>
-        <div class="c cbe"><div class="k">Status</div><div class="v" id="pb-status" style="font-size:13px;">—</div></div>
-        <div class="c delta"><div class="k">Real savings this month</div><div class="v" id="pb-savings">€0.00</div></div>
+        <div class="c delta"><div class="k">Your savings this month</div><div class="v" id="pb-savings">€0.00</div></div>
+        <div class="c non"><div class="k">CBE Index · tier</div><div class="v" id="pb-index" style="font-size:15px;">—</div></div>
+        <div class="c cbe"><div class="k">Crew Dividend</div><div class="v" id="pb-total">€0.00</div></div>
       </div>
-      <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:13px;">
-        <tr style="border-bottom:1px solid #234;"><td style="padding:8px 4px;color:#9fb8c8;">Savings bonus (this month)</td><td style="padding:8px 4px;text-align:right;font-size:16px;font-weight:700;color:#4fe0a0;" id="pb-savingsBonus">€0.00</td></tr>
-        <tr style="border-bottom:1px solid #234;"><td style="padding:8px 4px;color:#9fb8c8;">Floor bonus (this month, capped at max 10% of the monthly salary)</td><td style="padding:8px 4px;text-align:right;font-size:16px;font-weight:700;color:#e0a0f0;" id="pb-floorBonus">€0.00</td></tr>
-        <tr style="border-bottom:1px solid #234;"><td style="padding:8px 4px;color:#e0e0e0;font-weight:700;">Total bonus (this month)<div style="font-size:9.5px;color:#7d93a8;font-weight:400;">Estimate — payroll confirms</div></td><td style="padding:8px 4px;text-align:right;font-weight:700;color:#16c79a;font-size:18px;" id="pb-total">€0.00</td></tr>
-        <tr><td style="padding:8px 4px;color:#7d93a8;">Company keeps (from your share)</td><td style="padding:8px 4px;text-align:right;color:#7d93a8;font-size:14px;" id="pb-companyKeeps">€0.00 (—%)</td></tr>
-      </table>
+      <div id="pb-tierCalc" style="font-size:12px;color:#9fb8c8;padding:8px 4px 2px;"></div>
+      <div id="pb-nextTier" style="font-size:12px;color:#ffd76b;font-weight:700;padding:2px 4px 4px;"></div>
+      <div id="pb-tierTable" style="margin-top:6px;"></div>
+      <div style="font-size:9.5px;color:#7d93a8;padding:4px 4px 0;">Estimate — payroll confirms.</div>
+
+      <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;margin-top:16px;">🍽 CREW DINNER</div>
+      <div id="pb-dinner" style="background:rgba(255,215,107,.05);border:1px solid #5a4a20;border-radius:8px;padding:10px;"></div>
 
       <div style="font-size:10px;color:#9fb8c8;font-weight:700;margin-bottom:6px;margin-top:14px;">③ 🕐 TIME BANK — MONEY OR FREE DAYS</div>
       <div id="tb-convert" style="background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:8px;padding:10px;"></div>
       <div id="tb-bank" style="background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:8px;padding:10px;margin-top:8px;"></div>
       <details style="margin-top:8px;">
         <summary class="tapsum" style="font-size:11px;color:#9fb8c8;font-weight:700;">ⓘ HOW THE TIME BANK WORKS</summary>
-        <div style="font-size:8.5px;color:#6f8798;line-height:1.6;padding:7px 10px;margin-top:6px;background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:6px;">
-          After a month has ended, you choose how much of that month's bonus you take as <b style="color:#16c79a;">money</b> and how much as <b style="color:#ffd76b;">free days</b>. It starts at 0 days — everything is money unless you choose otherwise. 1 free day costs <b>€600 (PIC)</b> or <b>€300 (SIC)</b> — 1.5× the company's own extra duty day rate. Only whole days; the rest is always paid as money. The day value is fixed the moment you convert and never changes afterwards.<br/><br/>
-          The bank holds max <b>17 days</b>. Days can build up over several months, so a long block (e.g. a vacation) is possible. Days expire after <b>12 months</b> — unused days are paid out as money. Free days can only be taken at the <b>start or end</b> of the 17-day rotation, any number of days. Requests must be in by the <b>15th</b> of the month before the rotation.<br/><br/>
-          <b style="color:#ffd700;">Elite reward:</b> 3 months in a row in Elite Tier = <b>1 extra free day</b>, not paid from your bonus. If the bank is full, that day is paid as money instead.
+        <div style="font-size:10px;color:#9fb8c8;line-height:1.7;padding:8px 10px;margin-top:6px;background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:6px;">
+          • After each month: take your Crew Dividend as <b style="color:#16c79a;">money</b>, <b style="color:#ffd76b;">free days</b>, or both. Default = all money.<br/>
+          • 1 free day = <b>€600 (PIC)</b> / <b>€300 (SIC)</b>. Whole days only, the rest is paid as money.<br/>
+          • Bank: max <b>17 days</b>, kept <b>12 months</b> (then paid as money).<br/>
+          • Take days at the <b>start or end</b> of a rotation. Request by the <b>15th</b> of the month before.<br/>
+          • <b style="color:#ffd700;">Elite reward:</b> 3 Elite months in a row = <b>1 extra free day</b>, on top.
         </div>
       </details>
 
@@ -1151,9 +1153,12 @@ details[open] .cl-toggle-chevron{transform:rotate(90deg);}
       <div id="pb-dayList" style="margin-bottom:10px;"></div>
 
       <details style="margin-top:14px;">
-        <summary class="tapsum" style="font-size:11px;color:#9fb8c8;font-weight:700;">ⓘ HOW THIS BONUS WORKS</summary>
-        <div style="font-size:8.5px;color:#6f8798;line-height:1.6;padding:7px 10px;margin-top:6px;background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:6px;">
-          A month <b style="color:#ffd76b;">qualifies</b> the moment you either beat last month by +1% <i>or</i> hold Elite Tier that month — same "met" flag the CBE Index table already uses, nothing new to track. In a qualifying month you get two things: <b style="color:#16c79a;">10% of the real euros you saved</b> (from the Cost Ledger, uncapped — the more you genuinely save, the more you earn, always), plus a <b style="color:#e0a0f0;">floor bonus</b> — up to 10% of that month's salary — that rewards the parts of CBE that don't show up in fuel numbers at all. The floor never pushes the total past what was actually saved: in a quiet month it shrinks to fit, so the company can never pay out more than it saved. In a non-qualifying month, only the 10%-of-savings piece applies — no floor.<br/><br/><b style="color:#9fb8c8;">Flying with other pilots?</b> A saving on a shared flight was made by the whole crew together, not one person alone — so <b style="color:#ffd76b;">crew size</b> (④ below) divides the 10%-of-savings piece evenly between everyone flying that leg (2 pilots → 5% each, 3 → 3.3% each, and so on), so the company's total payout for that saving always stays at 10%, never more, no matter how many pilots were on board. The floor bonus is untouched by this — it's tied to your own salary and your own performance, not shared.
+        <summary class="tapsum" style="font-size:11px;color:#9fb8c8;font-weight:700;">ⓘ HOW THE CREW DIVIDEND WORKS</summary>
+        <div style="font-size:10px;color:#9fb8c8;line-height:1.6;padding:8px 10px;margin-top:6px;background:rgba(255,255,255,.03);border:1px solid #1d3a44;border-radius:6px;">
+          <b style="color:#16c79a;">Crew Dividend = your savings × your tier %</b><br/>
+          • <b>Your savings</b> = money saved on your flying days ÷ crew size (④).<br/>
+          • <b>Your tier</b> = your monthly CBE Index (table above). Same % for Captain and FO.<br/>
+          • A loss month = €0, never negative.
         </div>
       </details>
       <div class="cl-flag" style="margin-top:10px;">Real savings are summed from your saved Cost Ledger days (Statistic · Money Saving) that fall within the selected month. Save each flying day there first, or this will show €0.</div>
@@ -3287,9 +3292,6 @@ let PB_MONTH=null;
 function openPilotBonus(){
   stopRadarBlipAudio();
   try{ clRecalcAllDays(); }catch(e){ console.warn('recalc failed',e); }
-  const salary=pbLoadSalary();
-  const sEl=document.getElementById('pb-salaryField');
-  if(sEl) sEl.value=salary!=null?salary:'';
   const rEl=document.getElementById('pb-rankField'); if(rEl) rEl.value=tbLoadRank();
   const months=computeEliteTimeline(groupByMonth(DB.sectors));
   const sel=document.getElementById('pb-monthField');
@@ -3373,14 +3375,14 @@ function tbRender(){
   const done=t.conv.find(c=>c.month===mk);
   const curMonth=clLocalISO().slice(0,7);
   const row=(k,v,c)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #1d3a44;font-size:13px;"><span style="color:#9fb8c8;">${k}</span><span style="font-weight:700;color:${c||'#fff'};font-size:15px;">${v}</span></div>`;
-  let h=`<div style="font-size:11px;color:#9fb8c8;font-weight:700;padding-bottom:4px;">① ${mk?tbFmtMonth(mk).toUpperCase():'THIS MONTH'} BONUS — MONEY OR DAYS</div>`;
+  let h=`<div style="font-size:11px;color:#9fb8c8;font-weight:700;padding-bottom:4px;">① ${mk?tbFmtMonth(mk).toUpperCase():'THIS MONTH'} CREW DIVIDEND — MONEY OR DAYS</div>`;
   if(done){
-    h+=row('Total bonus','€'+tbEur0(PB_LAST_TOTAL),'#16c79a');
+    h+=row('Crew Dividend','€'+tbEur0(PB_LAST_TOTAL),'#16c79a');
     h+=row('Value of 1 free day','€'+tbEur0(done.rate)+' ('+done.rank+')');
     h+=row('Converted to days',done.days===0?'0 days — all payout':done.days+(done.days===1?' day':' days'),'#ffd76b');
     const rest=PB_LAST_TOTAL-done.days*done.rate;
-    h+=row('Remaining bonus (paid as money)','€'+tbEur0(Math.max(0,rest)),'#16c79a');
-    if(rest<-0.5) h+=`<div style="font-size:10px;color:#ffb84d;padding:6px 2px;">⚠ This month's bonus has changed since you converted and no longer covers ${done.days} days.</div>`;
+    h+=row('Paid as money','€'+tbEur0(Math.max(0,rest)),'#16c79a');
+    if(rest<-0.5) h+=`<div style="font-size:10px;color:#ffb84d;padding:6px 2px;">⚠ This month's Crew Dividend has changed since you converted and no longer covers ${done.days} days.</div>`;
     h+=`<div style="font-size:10px;color:#7d93a8;padding:8px 2px 0;">✓ Requested ${tbFmtDate(done.at)} — <span style="color:#f88;text-decoration:underline;cursor:pointer;" onclick="tbUndo('${mk}')">undo</span></div>`;
   } else {
     const open=!!mk&&mk<curMonth; // only a finished month can be converted
@@ -3388,13 +3390,13 @@ function tbRender(){
     const max=open?Math.max(0,Math.min(Math.floor(PB_LAST_TOTAL/rate+1e-9),room)):0;
     TB_PICK=Math.max(0,Math.min(TB_PICK,max));
     const btn=(lbl,fn,dis)=>`<button onclick="${fn}" ${dis?'disabled':''} style="width:38px;height:34px;font-size:18px;font-weight:800;border-radius:6px;border:1px solid #335;background:${dis?'#1a2533':'#16324a'};color:${dis?'#556':'#fff'};">${lbl}</button>`;
-    h+=row('Total bonus','€'+tbEur0(PB_LAST_TOTAL),'#16c79a');
+    h+=row('Crew Dividend','€'+tbEur0(PB_LAST_TOTAL),'#16c79a');
     h+=row('Value of 1 free day','€'+tbEur0(rate)+' ('+rank+')');
     h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #1d3a44;font-size:13px;"><span style="color:#9fb8c8;">Convert to days</span><span style="display:flex;align-items:center;gap:10px;">${btn('−','tbPick(-1)',TB_PICK<=0)}<b style="font-size:20px;color:#ffd76b;min-width:26px;text-align:center;">${TB_PICK}</b>${btn('+','tbPick(1)',TB_PICK>=max)}</span></div>`;
-    h+=row('Remaining bonus (paid as money)','€'+tbEur0(PB_LAST_TOTAL-TB_PICK*rate),'#16c79a');
+    h+=row('Paid as money','€'+tbEur0(PB_LAST_TOTAL-TB_PICK*rate),'#16c79a');
     if(!open) h+=`<div style="font-size:10px;color:#7d93a8;padding:6px 2px;">Available after month end — you choose once ${mk?tbFmtMonth(mk):'the month'} is finished.</div>`;
     else if(max===0&&PB_LAST_TOTAL>=rate&&room===0) h+=`<div style="font-size:10px;color:#ffb84d;padding:6px 2px;">Time Bank is full (${TB_CAP} days) — this month is paid as money.</div>`;
-    else if(max===0) h+=`<div style="font-size:10px;color:#7d93a8;padding:6px 2px;">Bonus is below the value of 1 free day — paid as money.</div>`;
+    else if(max===0) h+=`<div style="font-size:10px;color:#7d93a8;padding:6px 2px;">Crew Dividend is below the value of 1 free day — paid as money.</div>`;
     const usable=open&&PB_LAST_TOTAL>0.005;
     h+=`<button onclick="tbConfirm()" ${usable?'':'disabled'} style="margin-top:10px;width:100%;padding:10px;font-weight:800;font-size:13px;border-radius:6px;border:1px solid ${usable?'#16c79a':'#335'};background:${usable?'#0c3a2a':'#1a2533'};color:${usable?'#16c79a':'#556'};">${tbDecisionLabel(TB_PICK,PB_LAST_TOTAL-TB_PICK*rate)}</button>`;
   }
@@ -3424,7 +3426,7 @@ function tbRender(){
         <select id="tb-takeWhere" style="${sel}" ${dis}><option value="start">start</option><option value="end">end</option><option value="split">start + end</option></select>
       </div>
       <button onclick="tbRequest()" ${dis} style="margin-top:8px;width:100%;padding:9px;font-weight:800;font-size:12px;border-radius:6px;border:1px solid ${empty?'#335':'#ffd76b'};background:${empty?'#1a2533':'#3a2e00'};color:${empty?'#556':'#ffd76b'};">REQUEST FREE DAYS FROM BANK</button>
-      <div style="font-size:9.5px;color:#7d93a8;padding-top:4px;">${empty?'Bank empty — convert bonus into days first. ':''}Requests close on the 15th — today the earliest rotation is ${tbFmtMonth(first)}.</div>`;
+      <div style="font-size:9.5px;color:#7d93a8;padding-top:4px;">${empty?'Bank empty — convert Crew Dividend into days first. ':''}Requests close on the 15th — today the earliest rotation is ${tbFmtMonth(first)}.</div>`;
   }
   if(t.take.length){
     b+=`<div style="margin-top:10px;padding-top:8px;border-top:1px solid #1d3a44;font-size:11px;color:#9fb8c8;font-weight:700;">REQUESTED</div>`;
@@ -3445,7 +3447,7 @@ function tbConfirm(){
   const t=tbLoad(); if(t.conv.some(c=>c.month===mk)) return;
   const n=TB_PICK;
   const total=PB_LAST_TOTAL;
-  appConfirm('🕐 '+tbFmtMonth(mk).toUpperCase()+' BONUS','Bonus €'+tbEur0(total)+'\n'+tbDecisionLabel(n,total-n*rate),'Yes, request',()=>{
+  appConfirm('🕐 '+tbFmtMonth(mk).toUpperCase()+' CREW DIVIDEND','Crew Dividend €'+tbEur0(total)+'\n'+tbDecisionLabel(n,total-n*rate),'Yes, request',()=>{
     const t2=tbLoad(); if(t2.conv.some(c=>c.month===mk)) return;
     t2.conv.push({month:mk,days:n,rate,rank,at:clLocalISO()}); tbSave(t2); TB_PICK=0; tbRender();
   });
@@ -3489,60 +3491,156 @@ function pbMonthlyShareFrom(monthKey){
   return {totalReal, yourShare};
 }
 
+// 22 Oct 2026 (Cem, handoff "Crew Dividend + Crew Dinner"): ONE rule replaces the floor bonus,
+// the fixed 10% saving bonus and the cap. Crew Dividend = your own savings this month × tier %.
+// The tier comes from the monthly CBE Index; the bars are the game's own values (read live, so
+// they follow any change to the task points): Qualified = QUAL_SECTOR_SCORE, Level 2 = 60% of the
+// scoring ceiling, Elite = 75% to enter / 70% to keep. Captain and FO get the same %.
+const CD_TIERS=[{key:'base',name:'Below Qualified',pct:5},{key:'qual',name:'Qualified',pct:10},{key:'l2',name:'Level 2',pct:20},{key:'elite',name:'Elite',pct:30}];
+function cdBars(){ return {qual:QUAL_SECTOR_SCORE,l2:getLevel2IndexBar(),elite:getEliteEntryIndex(),keep:getEliteMaintainIndex()}; }
+function cdTierFor(m){
+  const B=cdBars(), idx=m?m.cbeIndex:0;
+  const key=(m&&m.isElite)?'elite':(idx>=B.l2?'l2':(idx>=B.qual?'qual':'base'));
+  const tier=CD_TIERS.find(t=>t.key===key);
+  let next=null;
+  if(key==='base') next={name:'Qualified',pct:10,pts:B.qual-idx};
+  else if(key==='qual') next={name:'Level 2',pct:20,pts:B.l2-idx};
+  else if(key==='l2') next={name:'Elite',pct:30,pts:B.elite-idx};
+  return {...tier,next,bars:B,idx};
+}
 function pbCompute(){
   const months=computeEliteTimeline(groupByMonth(DB.sectors));
   const m=months.find(x=>x.key===PB_MONTH);
-  const idxEl=document.getElementById('pb-index'), statusEl=document.getElementById('pb-status');
+  const B=cdBars();
+  const f0=n=>Math.round(n).toLocaleString('de-DE');
+  const T=m?cdTierFor(m):null;
+  const tbl=CD_TIERS.map((t,i)=>{
+    const range=t.key==='base'?'below '+f0(B.qual):t.key==='qual'?f0(B.qual)+' – '+f0(B.l2-1):t.key==='l2'?f0(B.l2)+' – '+f0(B.elite-1):f0(B.elite)+'+ (kept down to '+f0(B.keep)+')';
+    const on=T&&T.key===t.key;
+    return `<tr style="${on?'background:rgba(22,199,154,.12);':''}"><td style="padding:5px 6px;color:${on?'#16c79a':'#9fb8c8'};font-weight:${on?800:500};">${on?'▶ ':''}${t.name}</td><td style="padding:5px 6px;color:#7d93a8;text-align:center;">${range}</td><td style="padding:5px 6px;text-align:right;font-weight:800;color:${on?'#16c79a':'#dfe8ee'};">${t.pct}%</td></tr>`;
+  }).join('');
+  document.getElementById('pb-tierTable').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px;background:rgba(255,255,255,.02);border:1px solid #1d3a44;border-radius:6px;"><tr><td style="padding:5px 6px;color:#6f8798;font-size:9.5px;">TIER</td><td style="padding:5px 6px;color:#6f8798;font-size:9.5px;text-align:center;">MONTHLY CBE INDEX</td><td style="padding:5px 6px;color:#6f8798;font-size:9.5px;text-align:right;">CREW DIVIDEND</td></tr>${tbl}</table>`;
   if(!m){
-    idxEl.textContent='—'; statusEl.textContent=months.length?'No sectors flown in '+(PB_MONTH||'this month'):'No sectors flown yet'; statusEl.style.color='#7d93a8';
+    document.getElementById('pb-index').textContent='—';
     document.getElementById('pb-savings').textContent='€0.00';
-    document.getElementById('pb-savingsBonus').textContent='€0.00';
-    document.getElementById('pb-floorBonus').textContent='€0.00';
     document.getElementById('pb-total').textContent='€0.00';
-    document.getElementById('pb-companyKeeps').textContent='€0.00 (—%)';
-    pbRenderDayList(PB_MONTH||'');
+    document.getElementById('pb-tierCalc').textContent=months.length?'No sectors flown in '+(PB_MONTH||'this month'):'No sectors flown yet';
+    document.getElementById('pb-nextTier').textContent='';
+    pbRenderDayList(PB_MONTH||''); pbRenderDinner();
     PB_LAST_TOTAL=0; tbRender();
     return;
   }
-  idxEl.textContent=m.cbeIndex.toFixed(2);
-  const qualifying=m.met===true;
-  statusEl.textContent=m.met==null?'First month — no target yet':(qualifying?(m.isElite?'⭐ ELITE — qualifies':'✅ +1% MET — qualifies'):(m.isElite?'⚠ BELOW ELITE FLOOR':'❌ TARGET MISSED'));
-  statusEl.style.color=m.met==null?'#7d93a8':(qualifying?'#4f4':'#f88');
-
-  const salary=pbLoadSalary();
-  const monthlySalary=salary!=null?salary/12:null;
   const {totalReal, yourShare}=pbMonthlyShareFrom(m.key);
-  document.getElementById('pb-savings').textContent='€'+clEur(totalReal)+(Math.abs(totalReal-yourShare)>0.01?' (your share: €'+clEur(yourShare)+')':'');
-
-  // Savings bonus = 10% of THIS pilot's own share for each day, already correctly weighted by
-  // that day's own crew size above — a day flown solo counts in full, a day flown with others
-  // is already divided by however many pilots were on it that specific day.
-  // 3 Oct 2026: a month with a net LOSS gives €0 bonus, never a negative one.
-  const savingsBonus=Math.max(0,yourShare*0.10);
-  let floorBonus=0;
-  if(qualifying&&monthlySalary!=null){
-    // Capped against THIS pilot's own share — each pilot's device computes this independently
-    // with no shared state, so capping locally against one's own slice is what keeps the sum
-    // across the whole crew from ever exceeding the real total, without needing any cross-device
-    // reconciliation.
-    const roomLeft=Math.max(0, yourShare-savingsBonus);
-    floorBonus=Math.min(monthlySalary*0.10, roomLeft);
-  }
-  const total=savingsBonus+floorBonus;
-  const companyKeeps=yourShare-total;
-  const companyPct=yourShare>0?(companyKeeps/yourShare*100):0;
-
-  document.getElementById('pb-savingsBonus').textContent='€'+clEur(savingsBonus);
-  document.getElementById('pb-floorBonus').textContent=(qualifying?'€'+clEur(floorBonus):'€0.00 (non-qualifying month)');
-  document.getElementById('pb-total').textContent='€'+clEur(total);
-  PB_LAST_TOTAL=total;
-  document.getElementById('pb-companyKeeps').textContent='€'+clEur(companyKeeps)+' ('+companyPct.toFixed(0)+'%)';
-  pbRenderDayList(m.key);
-
-  if(salary==null){
-    document.getElementById('pb-floorBonus').textContent='Enter yearly salary above to compute';
-  }
+  // a month with a net LOSS gives €0, never a negative amount
+  const dividend=Math.max(0,yourShare)*T.pct/100;
+  document.getElementById('pb-savings').textContent='€'+clEur(yourShare);
+  document.getElementById('pb-index').innerHTML=m.cbeIndex.toFixed(0)+' · <span style="color:#16c79a;">'+T.name+' '+T.pct+'%</span>';
+  document.getElementById('pb-total').textContent='€'+clEur(dividend);
+  document.getElementById('pb-tierCalc').innerHTML=(Math.abs(totalReal-yourShare)>0.01?`<span style="color:#7d93a8;">Crew savings €${clEur(totalReal)} → your share €${clEur(yourShare)}</span><br>`:'')+`€${clEur(Math.max(0,yourShare))} × ${T.pct}% (${T.name}) = <b style="color:#16c79a;">€${clEur(dividend)}</b>`;
+  document.getElementById('pb-nextTier').textContent=T.next?('⬆ '+Math.max(1,Math.ceil(T.next.pts))+(Math.ceil(T.next.pts)<=1?' point':' points')+' to '+T.next.name+' → '+T.next.pct+'%'):('⭐ Top tier — keep your index above '+f0(B.keep)+' to stay Elite');
+  PB_LAST_TOTAL=dividend;
+  pbRenderDayList(m.key); pbRenderDinner();
   tbRender();
+}
+// 22 Oct 2026: Crew Dinner — concept card for the pitch (crew connection comes in Phase 3).
+// Rule: crew average ≥ 60% of the game's maximum score on a flying day → company dinner, €50 per
+// person. Individual scores don't matter, only the crew result (CRM). Nothing is booked or stored.
+function cdDinnerBar(){ return Math.round(getScoringCeiling()*0.60); }
+function pbRenderDinner(){
+  const el=document.getElementById('pb-dinner'); if(!el) return;
+  const bar=cdDinnerBar();
+  const secs=(DB.sectors||[]).filter(x=>!x.manual&&x.timestamp);
+  let day=null, avg=null;
+  if(secs.length){
+    const lastIso=secs.map(x=>clDateToISO(x.date)).filter(Boolean).sort().pop();
+    const todays=secs.filter(x=>clDateToISO(x.date)===lastIso);
+    day=lastIso; avg=Math.round(todays.reduce((a,x)=>a+sectorScore(x),0)/todays.length);
+  }
+  const ok=avg!=null&&avg>=bar;
+  el.innerHTML=`<div style="font-size:13px;font-weight:800;color:#ffd76b;">🍽 Crew Dinner: fly well together, eat well together.</div>
+    <div style="font-size:11px;color:#c9d4de;line-height:1.55;margin-top:4px;">Your crew reaches an <b>average of 60%</b> or more on a flying day → <b>company dinner, €50 per person</b>. Only the crew result counts. That's CRM.</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
+      <div style="font-size:12px;color:#dfe8ee;">${avg==null?'No flying day yet':`Your score ${day===clLocalISO()?'today':'('+tbFmtDate(day)+')'}: <b style="color:${ok?'#16c79a':'#ffb84d'};">${avg}</b> <span style="color:#7d93a8;">/ bar ${bar}</span>`}
+        <div style="font-size:10px;color:#7d93a8;margin-top:2px;">Crew connection coming in Phase 3</div></div>
+      <button class="tapbtn" onclick="pbDinnerPreview()">🎉 PREVIEW</button>
+    </div>`;
+}
+function pbDinnerPreview(){
+  // 22 Oct 2026 (Cem): the dinner is a GIFT — a warm, happy celebration (grown-up, not childish).
+  // Demonstration only — nothing is booked, stored or paid.
+  if(!document.getElementById('cdPartyCss')){
+    const st=document.createElement('style'); st.id='cdPartyCss';
+    st.textContent=`
+#cdParty{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:radial-gradient(circle at 50% 45%,rgba(255,190,90,.38),rgba(12,10,24,.9) 68%);animation:cdpFade .4s ease-out;}
+#cdParty canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#cdParty .card{position:relative;max-width:410px;width:100%;text-align:center;border-radius:24px;padding:28px 18px 24px;
+  background:linear-gradient(165deg,#fffaf0 0%,#ffeec4 55%,#ffd79a 100%);color:#3d2408;
+  font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;
+  box-shadow:0 0 0 3px #fff,0 0 70px rgba(255,180,70,.75),0 24px 60px rgba(0,0,0,.5);animation:cdpPop .75s cubic-bezier(.2,1.45,.4,1);}
+#cdParty .glass{width:76px;height:76px;margin:0 auto 6px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;
+  background:radial-gradient(circle at 40% 35%,#fff,#ffe3a3);box-shadow:0 0 0 4px rgba(255,255,255,.8),0 0 34px rgba(255,170,50,.8);animation:cdpToast 2.2s ease-in-out infinite;}
+#cdParty h2{margin:8px 0 2px;font-size:42px;font-weight:900;letter-spacing:3px;
+  background:linear-gradient(90deg,#e8505b,#f08a24,#e6a800,#f08a24,#e8505b);background-size:250% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:cdpShine 3.5s linear infinite;}
+#cdParty .lead{font-size:19px;font-weight:800;line-height:1.35;margin:6px 0 10px;}
+#cdParty .crm{display:inline-block;font-size:14px;font-weight:700;color:#7a3f00;background:rgba(255,255,255,.7);border:1px solid rgba(240,138,36,.45);
+  border-radius:999px;padding:6px 14px;margin-bottom:16px;}
+#cdParty .chips{display:flex;gap:8px;justify-content:center;margin-bottom:16px;}
+#cdParty .chip{background:#fff;border-radius:14px;padding:8px 12px;box-shadow:0 2px 0 rgba(150,80,0,.18);flex:1;max-width:120px;}
+#cdParty .chip .k{font-size:9.5px;white-space:nowrap;font-weight:800;color:#a0601a;letter-spacing:.6px;text-transform:uppercase;}
+#cdParty .chip .v{font-size:22px;font-weight:900;color:#1f8a4c;}
+#cdParty .ask{font-size:14px;font-weight:600;color:#6b4a22;margin-bottom:18px;}
+#cdParty button{border:none;border-radius:14px;padding:14px 36px;font-size:16px;font-weight:900;letter-spacing:1px;color:#fff;cursor:pointer;
+  background:linear-gradient(90deg,#1f8a4c,#27a35c);box-shadow:0 4px 0 #13603a,0 0 22px rgba(39,163,92,.45);}
+@keyframes cdpFade{from{opacity:0}to{opacity:1}}
+@keyframes cdpPop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes cdpToast{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.06)}}
+@keyframes cdpShine{to{background-position:250% 0}}`;
+    document.head.appendChild(st);
+  }
+  const old=document.getElementById('cdParty'); if(old) old.remove();
+  const bar=(typeof cdDinnerBar==='function')?cdDinnerBar():606;
+  const o=document.createElement('div'); o.id='cdParty';
+  o.innerHTML=`<canvas></canvas><div class="card">
+    <div class="glass">🥂</div>
+    <h2>SURPRISE!</h2>
+    <div class="lead">You and your crew earned a<br>company dinner today!</div>
+    <div class="crm">🤝 Your CRM made it happen.</div>
+    <div class="chips">
+      <div class="chip"><div class="k">Crew average</div><div class="v">633</div></div>
+      <div class="chip"><div class="k">Needed</div><div class="v" style="color:#a0601a;">${bar}</div></div>
+      <div class="chip"><div class="k">Dinner</div><div class="v">€50<span style="font-size:12px;"> pp</span></div></div>
+    </div>
+    <div class="ask">Ask your crew: did you get it too?</div>
+    <button>🥂 THANK YOU!</button></div>`;
+  document.body.appendChild(o);
+  // confetti: warm colours only, big burst + side cannons, then a light steady fall
+  const cv=o.querySelector('canvas'), cx=cv.getContext('2d');
+  cv.width=innerWidth; cv.height=innerHeight;
+  const cols=['#ffcf4a','#f08a24','#e8505b','#ffffff','#ffe3a3','#27a35c'];
+  const P=[];
+  const shoot=(n,x,y,dir)=>{for(let i=0;i<n;i++){const a=dir==null?Math.random()*Math.PI*2:(-Math.PI/2+dir*(.35+Math.random()*.5)),v=6+Math.random()*12;
+    P.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-(dir==null?4:2),w:5+Math.random()*5,h:3+Math.random()*3,c:cols[i%cols.length],a:Math.random()*6,va:(Math.random()-.5)*.35,ph:Math.random()*6});}};
+  shoot(150,innerWidth/2,innerHeight*.5);
+  setTimeout(()=>{shoot(70,0,innerHeight,1);shoot(70,innerWidth,innerHeight,-1);},350);
+  setTimeout(()=>{shoot(50,0,innerHeight,1);shoot(50,innerWidth,innerHeight,-1);},1200);
+  let t=0,raf;
+  const tick=()=>{ if(!document.body.contains(o)) return; t++;
+    cx.clearRect(0,0,cv.width,cv.height);
+    if(t%7===0&&t<900) P.push({x:Math.random()*cv.width,y:-12,vx:(Math.random()-.5),vy:1.5,w:5+Math.random()*4,h:3+Math.random()*2,c:cols[t%cols.length],a:0,va:.08,ph:Math.random()*6});
+    for(let i=P.length-1;i>=0;i--){const p=P[i]; p.vy=Math.min(p.vy+.3,3.2); p.vx*=.985; p.x+=p.vx+Math.sin(t*.05+p.ph)*.6; p.y+=p.vy; p.a+=p.va;
+      if(p.y>cv.height+20){P.splice(i,1);continue;}
+      cx.save();cx.translate(p.x,p.y);cx.rotate(p.a);cx.scale(1,Math.abs(Math.cos(t*.08+p.ph))+.2);cx.fillStyle=p.c;cx.fillRect(-p.w/2,-p.h/2,p.w,p.h);cx.restore();}
+    raf=requestAnimationFrame(tick);};
+  tick();
+  // short happy fanfare + glass clink (only if sound is on)
+  try{ if(typeof MUSIC_ON==='undefined'||MUSIC_ON){ const ac=new (window.AudioContext||window.webkitAudioContext)(), g=ac.createGain(); g.gain.value=.16; g.connect(ac.destination);
+    [[523,0,'triangle',.18],[659,.12,'triangle',.18],[784,.24,'triangle',.18],[1047,.38,'triangle',.6],[2637,.95,'sine',1.2],[3136,1.0,'sine',1.2]].forEach(([f,d,ty,len])=>{const os=ac.createOscillator(),e=ac.createGain();
+      os.type=ty;os.frequency.value=f;os.connect(e);e.connect(g);const t0=ac.currentTime+d;
+      e.gain.setValueAtTime(0,t0);e.gain.linearRampToValueAtTime(ty==='sine'?.5:1,t0+.01);e.gain.exponentialRampToValueAtTime(.001,t0+len);os.start(t0);os.stop(t0+len+.05);});
+    setTimeout(()=>{try{ac.close();}catch(e){}},3000); } }catch(e){}
+  o.querySelector('button').onclick=()=>{cancelAnimationFrame(raf);o.remove();};
 }
 // Lets crew size be checked/adjusted right here while looking at the bonus, without needing
 // to reopen the Cost Ledger — but it edits the exact same stored history entry, so there's
@@ -8907,6 +9005,7 @@ function pfSaveSectorEdit(){
     const ch=(s.choices||[]).find(c=>c.task===sel.dataset.task); if(!ch)return;
     const np=Number(sel.value), delta=np-(ch.pts||0); if(!delta)return;
     ch.pts=np;
+    const opt=((TASKS.find(x=>x.id===ch.task)||{}).c||[]).find(o=>o.p===np); if(opt) ch.label=opt.l; // keep the answer's name in step with its points
     s.rawScore=(s.rawScore!=null?s.rawScore:((s.score||0)-(s.trainBonus||0)))+delta;
     s.score=s.rawScore+(s.trainBonus||0);
     if(typeof s.tasks==='number'&&s.tasks>0) s.cbeIndex=parseFloat((s.score/s.tasks).toFixed(2));
