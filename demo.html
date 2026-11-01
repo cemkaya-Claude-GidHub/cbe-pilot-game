@@ -6258,7 +6258,7 @@ function renderDashboard(){
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       <span style="font-size:10px;color:#2f4f74;cursor:pointer;text-decoration:underline;" onclick="restoreDataFromText()">Restore from pasted text (text backups)</span>
     </div>
-    <div style="text-align:center;font-size:9.5px;color:#4a6788;margin-top:6px;line-height:1.5;">© 2026 Cem Kaya · CBE Pilot Game · Confidential prototype — not for copying or distribution<br><span style="opacity:.7;">build 30 Oct 02:50 · DEMO (separate storage — never touches the real game)</span></div>
+    <div style="text-align:center;font-size:9.5px;color:#4a6788;margin-top:6px;line-height:1.5;">© 2026 Cem Kaya · CBE Pilot Game · Confidential prototype — not for copying or distribution<br><span style="opacity:.7;">build 1 Nov 01:20 · DEMO (separate storage — never touches the real game)</span></div>
   </div>`;
   checkAllExpiryBanner();
   requestAnimationFrame(()=>requestAnimationFrame(()=>{sizeStartRadar();scheduleRadarBlipAudio();showStartSpotlightIfNeeded();}));
@@ -8294,6 +8294,36 @@ async function clCrewCheckFromTeclog(iso,tlegs){
   try{ const h=clLoadHistory(), i=h.findIndex(e=>(clDateToISO(e.date)||e.date)===iso);
     if(i>=0){ h[i].crewSize=clDayCrewFromGame(iso)||h[i].crewSize||2; h[i].crewManual=false; clSaveHistory(h); } }catch(e){}
 }
+// 1 Nov 2026 (Cem): the Teclog is the official record. Entered off/on-block times that differ from it
+// (no tolerance) are replaced by the Teclog times — flight, logbook block time and Money Saving — and the
+// pilot sees ONE short message (OK only, no extra work). No message when the times match.
+async function clTimeCheckFromTeclog(iso,tlegs){
+  const secs=(DB.sectors||[]).filter(x=>!x.manual&&clDateToISO(x.date)===iso)
+    .sort((a,b)=>(a.legNum||0)-(b.legNum||0)||(a.timestamp||0)-(b.timestamp||0));
+  if(!secs.length||!Array.isArray(tlegs)) return;
+  const U=v=>String(v||'').trim().toUpperCase();
+  const T=v=>{ const m=String(v||'').trim().match(/^(\d{1,2}):?(\d{2})/); if(!m) return ''; const h=+m[1],mi=+m[2]; return (h<24&&mi<60)?String(h).padStart(2,'0')+':'+String(mi).padStart(2,'0'):''; };
+  const used=new Set(), lines=[];
+  tlegs.forEach(l=>{
+    const x=secs.find(s=>!used.has(s)&&U(s.dep)===U(l.from)&&U(s.arr)===U(l.to)); if(!x) return; used.add(x);
+    const off=T(l.offBlock), on=T(l.onBlock); const ch=[];
+    if(off&&T(x.depTime)!==off){ ch.push('off-block '+(T(x.depTime)||'—')+' → '+off); x.depTime=off; }
+    if(on&&T(x.arrTime)!==on){ ch.push('on-block '+(T(x.arrTime)||'—')+' → '+on); x.arrTime=on; }
+    if(!ch.length) return;
+    const tt=calcTotalFromTimes(x.depTime,x.arrTime); if(tt) x.totalTime=tt;
+    // the logbook page of this flight follows too
+    const p=(DB.personalLog||[]).filter(e=>clDateToISO(e.date)===iso&&U(e.dep)===U(x.dep)&&U(e.arr)===U(x.arr))
+      .sort((a,b)=>Math.abs((a.timestamp||0)-(x.timestamp||0))-Math.abs((b.timestamp||0)-(x.timestamp||0)))[0];
+    if(p){ p.depTime=x.depTime; p.arrTime=x.arrTime; if(tt){ p.block=tt; p.totalTime=tt; } }
+    lines.push(x.dep+'→'+x.arr+'  '+ch.join(', '));
+  });
+  if(!lines.length) return;
+  await saveData(DB);
+  // Money Saving uses the same times (APU/GPU/ground time)
+  try{ if(CL_STATE&&CL_STATE.date===iso){ (CL_STATE.legs||[]).forEach(l=>{ const x=secs.find(s=>U(s.dep)===U(l.from)&&U(s.arr)===U(l.to)); if(x){ l.offBlock=x.depTime; l.onBlock=x.arrTime; } }); clSaveState(); try{ clCompute(); clRenderLegs(); }catch(e){} } }catch(e){}
+  await new Promise(res=>{ appConfirm('🕐 TIMES (TECLOG)','Your entered times differ from the Teclog:\n\n'+lines.join('\n')+'\n\nThe Teclog times are used.',null); const b=document.getElementById('appConfirmOk'); if(b) b.addEventListener('click',()=>res(),{once:true}); else res(); });
+  try{ renderDashboard(); }catch(e){}
+}
 async function autoTranscribeTeclog(){
   const statusEl=document.getElementById('autoTranscribeTeclogStatus');
   const btn=document.getElementById('autoTranscribeTeclogBtn');
@@ -8347,6 +8377,7 @@ async function autoTranscribeTeclog(){
     clLoadTranscribed(); // pulls the merged figures straight into the open Cost Ledger view
     if(FB) await FB.set(2,'CHECKING','',true);
     try{ await clCrewCheckFromTeclog(dateISO,result.legs); }catch(e){ console.warn('crew check',e); } // 24 Oct 2026
+    try{ await clTimeCheckFromTeclog(dateISO,result.legs); }catch(e){ console.warn('time check',e); } // 1 Nov 2026
     if(FB){ const cs=clDayCrewFromGame(dateISO)||2; await FB.set(2,cs+' PILOTS OK','ok'); FB.stop(); await FB.hold(700); }
     const notFlown=new Set((CL_STATE.notFlown||[]).map(x=>x.from+'→'+x.to));
     const expected=existingDay.legs.filter(leg=>!notFlown.has(leg.from+'→'+leg.to));
