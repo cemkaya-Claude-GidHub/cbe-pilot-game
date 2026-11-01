@@ -6269,7 +6269,7 @@ function renderDashboard(){
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       <span style="font-size:10px;color:#2f4f74;cursor:pointer;text-decoration:underline;" onclick="restoreDataFromText()">Restore from pasted text (text backups)</span>
     </div>
-    <div style="text-align:center;font-size:9.5px;color:#4a6788;margin-top:6px;line-height:1.5;">© 2026 Cem Kaya · CBE Pilot Game · Confidential prototype — not for copying or distribution<br><span style="opacity:.7;">build 1 Nov 23:45 · live</span></div>
+    <div style="text-align:center;font-size:9.5px;color:#4a6788;margin-top:6px;line-height:1.5;">© 2026 Cem Kaya · CBE Pilot Game · Confidential prototype — not for copying or distribution<br><span style="opacity:.7;">build 1 Nov 23:55 · live</span></div>
   </div>`;
   checkAllExpiryBanner();
   requestAnimationFrame(()=>requestAnimationFrame(()=>{sizeStartRadar();scheduleRadarBlipAudio();showStartSpotlightIfNeeded();}));
@@ -7217,7 +7217,8 @@ function showDayDecision(){
     div.onclick=()=>pickDayDecision(o.v);cc.appendChild(div);
   });
   pop.classList.add('active');document.body.classList.add('pop-open');
-  document.getElementById('pop-back').classList.remove('show');
+  // 1 Nov 2026 (Cem): BACK also here — goes back to the last question; the duty question comes again after it
+  document.getElementById('pop-back').classList.add('show');
   startDDConfetti();
 }
 let ddConfettiAnim=null;
