@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- CBE Pilot Game DEMO · VERSION: build 16 Nov 09:30 · DEMO · DATE: 16 Nov 2026 -->
 <html lang="en">
 <head>
 <script>
@@ -506,6 +507,9 @@ body.pop-open #popup{padding-top:var(--hud-clearance,64px);}
 .card .cn{font-size:clamp(6px,1vw,8px);color:#fff;margin-bottom:4px;line-height:1.6;}
 .card .cp{font-size:clamp(8px,1.3vw,11px);font-weight:bold;}
 .card.pos .cp{color:#0f8;}.card.neg .cp{color:#f44;}.card.neu .cp{color:#aaa;}
+.card .pchip{display:inline-block;margin-top:5px;font-family:monospace;font-size:clamp(9px,1.4vw,11px);color:#c9d6e3;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:1px 8px;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+.card .pchip b{color:#7df59a;} .card .pchip i{color:#ffb84d;font-style:normal;font-weight:700;}
+.card .pchip.ass{color:#8a9bb0;border-style:dashed;} .card .pchip.ass i{color:#b9a27a;}
 .card .cd{font-family:'VT323',monospace;font-size:clamp(12px,2vw,16px);color:#888;margin-top:4px;line-height:1.3;}
 #milestone{display:none;position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:250;text-align:center;pointer-events:none;}
 #milestone.show{display:block;animation:msIn .5s cubic-bezier(.2,1.6,.4,1);}
@@ -6294,7 +6298,7 @@ function renderDashboard(){
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       <span style="font-size:10px;color:#2f4f74;cursor:pointer;text-decoration:underline;" onclick="restoreDataFromText()">Restore from pasted text (text backups)</span>
     </div>
-    <div style="text-align:center;font-size:9.5px;color:#4a6788;margin-top:6px;line-height:1.5;">© 2026 Cem Kaya · CBE Pilot Game · Confidential prototype — not for copying or distribution<br><span style="opacity:.7;">build 1 Nov 23:55 · DEMO (separate storage — never touches the real game)</span></div>
+    <div style="text-align:center;font-size:9.5px;color:#4a6788;margin-top:6px;line-height:1.5;">© 2026 Cem Kaya · CBE Pilot Game · Confidential prototype — not for copying or distribution<br><span style="opacity:.7;">build 16 Nov 09:30 · DEMO (separate storage — never touches the real game)</span></div>
   </div>`;
   checkAllExpiryBanner();
   requestAnimationFrame(()=>requestAnimationFrame(()=>{sizeStartRadar();scheduleRadarBlipAudio();showStartSpotlightIfNeeded();}));
@@ -6598,9 +6602,9 @@ const TASKS=[
   {id:'fuel_tankering',training:true,wx:1251,phase:'⛽ TANKERING',icon:'💰',when:'every',note:'Optional — pilot\'s discretion. Check takeoff/landing performance limits before tankering extra fuel.',q:'FUEL SAVING by TANKERING? (in addition to OFP, to save time/money)',
    c:[{l:'YES ✓',p:100,i:'💰',d:'+100!'},{l:'NO',p:0,i:'⛽',d:'Optional — skipped'},{l:'FUEL NOT REQUIRED (remaining fuel)',p:0,i:'⛽',d:'',nopts:true}]},
   {id:'toilet_svc',wx:1356,phase:'🚾 SERVICE',icon:'🚾',when:'every',note:'Common sense — pilot\'s discretion',q:'TOILET SERVICE — your decision today?',
-   c:[{l:'AT THE CHEAPER AIRPORT',p:50,i:'✅',d:'+50!'},{l:'SKIPPED — PLANNED AHEAD',p:50,i:'🧠',d:'+50! Enough until a later stop or end of day'},{l:'AT THE MORE EXPENSIVE AIRPORT',p:20,i:'💸',d:'+20 — needed here'},{l:'NOT NEEDED TODAY',p:20,i:'⛔',d:'+20 — would not have ordered it'}]},
+   c:[{l:'AT THE CHEAPER AIRPORT',p:50,i:'✅',d:'+50!'},{l:'SKIPPED — PLANNED AHEAD',p:50,i:'🧠',d:'Enough until later'},{l:'AT THE MORE EXPENSIVE AIRPORT',p:20,i:'💸',d:'Needed here'},{l:'NOT NEEDED TODAY',p:20,i:'⛔',d:'Wouldn\'t have ordered'}]},
   {id:'water_svc',wx:1462,phase:'💦 SERVICE',icon:'💦',when:'every',note:'Common sense — pilot\'s discretion',q:'WATER SERVICE — your decision today?',
-   c:[{l:'AT THE CHEAPER AIRPORT',p:50,i:'✅',d:'+50!'},{l:'SKIPPED — PLANNED AHEAD',p:50,i:'🧠',d:'+50! Enough until a later stop or end of day'},{l:'AT THE MORE EXPENSIVE AIRPORT',p:20,i:'💸',d:'+20 — needed here'},{l:'NOT NEEDED TODAY',p:20,i:'⛔',d:'+20 — would not have ordered it'}]},
+   c:[{l:'AT THE CHEAPER AIRPORT',p:50,i:'✅',d:'+50!'},{l:'SKIPPED — PLANNED AHEAD',p:50,i:'🧠',d:'Enough until later'},{l:'AT THE MORE EXPENSIVE AIRPORT',p:20,i:'💸',d:'Needed here'},{l:'NOT NEEDED TODAY',p:20,i:'⛔',d:'Wouldn\'t have ordered'}]},
   {id:'movm_pax30',wx:1567,phase:'👥 BOARDING',icon:'🤲',when:'every',q:'MOVEMENT MSG: ready 30min before departure?',
    c:[{l:'YES ✓',p:0,i:'📤',d:'Sent!'},{l:'NO',p:-20,i:'😤',d:'-20!'}]},
   {id:'pax_late',paxOnly:true,wx:1672,phase:'👥 BOARDING',icon:'⏰',when:'every',q:'Were PAX LATE for boarding?',
@@ -7484,7 +7488,7 @@ function showPopup(task){
     const c=task.c[origIdx];
     const cls=c.p>0?'pos':c.p<0?'neg':'neu';
     const div=document.createElement('div');div.className=`card ${cls}`;
-    div.innerHTML=`<span class="ci">${c.i}</span><div class="cn">${c.l}</div>${c.nopts?'':`<div class="cp">${c.p>0?'+'+c.p:c.p} pts</div>`}${c.d?`<div class="cd">${c.d}</div>`:''}`;
+    div.innerHTML=`<span class="ci">${c.i}</span><div class="cn">${c.l}</div>${c.nopts?'':`<div class="cp">${c.p>0?'+'+c.p:c.p} pts</div>`}${cbeCardNote(c.d)?`<div class="cd">${cbeCardNote(c.d)}</div>`:''}${cbePriceChip(task,c)}`;
     div.onclick=()=>pick(origIdx);cc.appendChild(div);
   });
   document.getElementById('popup').classList.add('active');document.body.classList.add('pop-open');
@@ -7492,6 +7496,59 @@ function showPopup(task){
   if(!task.isCurveball)backBtn.classList.add('show');else backBtn.classList.remove('show');
 }
 
+// 16 Nov 2026 (Cem): small price chip on the answer cards (toilet, water, GPU, fuel) — prices from the
+// flight pack of this leg. Real price = solid chip; no price in the flight pack = dashed "≈ €100 assumed".
+// No flight pack for the day → no chips at all.
+// 16 Nov 2026 (Cem): the points are already shown on the card — drop "+50!" / "-20" / "· +30!" from the note
+function cbeCardNote(d){ return String(d||'').replace(/^\s*[+-]\d+!?\s*(—\s*)?/,'').replace(/\s*·?\s*[+-]\d+!?\s*$/,'').trim(); }
+function cbePriceCtx(){
+  try{
+    const iso=clDateToISO(flightLog&&flightLog.date); if(!iso) return null;
+    const day=getKnownDay(iso); if(!day||!Array.isArray(day.legs)||!Array.isArray(day.stops)) return null;
+    const U=v=>String(v||'').trim().toUpperCase();
+    const i=day.legs.findIndex(l=>U(l.from)===U(flightLog.dep)&&U(l.to)===U(flightLog.arr)); if(i<0) return null;
+    const l=day.legs[i];
+    const dep=day.stops[l.depStop!=null?l.depStop:i], arr=day.stops[l.arrStop!=null?l.arrStop:i+1];
+    return (dep&&arr)?{l,dep,arr}:null;
+  }catch(e){ return null; }
+}
+function cbePriceChip(task,c){
+  if(!task||!['toilet_svc','water_svc','groundpow','fuel_tankering'].includes(task.id)) return '';
+  const X=cbePriceCtx(); if(!X) return '';
+  const {l,dep,arr}=X;
+  const assumed=(st,key)=>+st[key]===100&&/fallback|not stated|no .*price|not on the brief|blank|assum/i.test(st.note||'');
+  const chip=(html,ass)=>`<div><span class="pchip${ass?' ass':''}">${html}</span></div>`;
+  const eur=v=>'€'+Math.round(v);
+  if(task.id==='toilet_svc'||task.id==='water_svc'){
+    const kind=task.id==='toilet_svc'?'toilet':'water', key=kind+'Price';
+    const val=st=>{ const free=clFirstFree(st,kind); return {free, v:free?0:(Number(st[key])||0), ass:!free&&assumed(st,key)}; };
+    const d=val(dep), a=val(arr);
+    const cheapDep=d.v<=a.v;
+    let st,x;
+    if(/CHEAPER/.test(c.l)){ st=cheapDep?dep:arr; x=cheapDep?d:a; }
+    else if(/EXPENSIVE/.test(c.l)){ st=cheapDep?arr:dep; x=cheapDep?a:d; }
+    else return '';
+    if(x.free) return chip(`${st.airport} <b>1st free</b>`);
+    if(x.ass) return chip(`${st.airport} <i>${eur(x.v)}</i> est.`,true);
+    return chip(`${st.airport} ${x.v>0?`<i>${eur(x.v)}</i>`:'<b>€0</b>'}`);
+  }
+  if(task.id==='groundpow'){
+    const h=Number(dep.gpuPrice)||0; if(!h) return '';
+    const ass=assumed(dep,'gpuPrice');
+    if(c.p===50) return chip('<b>€0</b>');
+    const f=c.p===40?0.25:c.p===30?0.5:c.p===10?1:null;
+    if(f==null) return chip(`<i>${eur(h)}</i>/hour${ass?' est.':''}`,ass);
+    return chip(`≈ <i>${eur(h*f)}</i>${ass?' est.':''}`,ass);
+  }
+  if(task.id==='fuel_tankering'){
+    if(!/^YES/.test(c.l)) return '';
+    if(l.tankerAllowed===false) return chip('<i>Union apt · not allowed</i>');
+    const a=Number(dep.fuelPrice), b=Number(arr.fuelPrice); if(!(a>0&&b>0)) return '';
+    const col=v=>v<=Math.min(a,b)?`<b>€${v.toFixed(2)}</b>`:`<i>€${v.toFixed(2)}</i>`;
+    return chip(`${col(a)} → ${col(b)}/L`);
+  }
+  return '';
+}
 let lastMilestone=0,streak=0;
 const MILESTONES=[100,200,300,400,500,600,800,1000];
 function screenFlash(){let f=document.getElementById('gold-flash');if(!f){f=document.createElement('div');f.id='gold-flash';f.style.cssText='position:fixed;inset:0;background:radial-gradient(circle,rgba(255,215,0,.45),rgba(255,215,0,0) 70%);z-index:245;pointer-events:none;opacity:0;transition:opacity .12s;';document.body.appendChild(f);}f.style.opacity='1';setTimeout(()=>f.style.opacity='0',180);}
